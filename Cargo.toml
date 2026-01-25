@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 rand="^0.8.0"
 sha2="^0.10.0"
+terminal_size = "^0.3.0"
+textwrap = "^0.16.0"
