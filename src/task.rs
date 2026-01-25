@@ -37,8 +37,11 @@ impl Task {
             tags: HashSet::new(),
         }
     }
-    fn get_ctr_arg(&self) -> &str {
+    pub fn get_name(&self) -> &str {
         &self.name
+    }
+    pub fn get_description(&self) -> &str {
+        &self.description
     }
     //pub fn to_csv(&self) -> String {
     //    let mut tags = Vec::new();
@@ -85,7 +88,7 @@ impl Task {
     //    Ok(Task::new(name, description, weight, tags))
     //}
     pub fn get_hash(&self) -> [u8; 32] {
-        sha2::Sha256::digest(self.get_ctr_arg()).into()
+        sha2::Sha256::digest(self.get_name()).into()
     }
     pub fn set_name(&mut self, name: impl Into<String>) -> &mut Self {
         self.name = name.into();
@@ -109,6 +112,15 @@ impl Task {
     pub fn clear_tags(&mut self) -> &mut Self {
         self.tags.clear();
         self
+    }
+    pub fn get_weight(&self) -> u32 {
+        self.weight
+    }
+    pub fn has_tag(&self, tag: impl AsRef<str>) -> bool {
+        self.tags.contains(tag.as_ref())
+    }
+    pub fn get_tags(&self) -> Vec<&str> {
+        self.tags.iter().map(|s| s.as_ref()).collect()
     }
 }
 impl FromStr for Task {
