@@ -87,20 +87,27 @@ impl Task {
     pub fn get_hash(&self) -> [u8; 32] {
         sha2::Sha256::digest(self.get_ctr_arg()).into()
     }
-    pub fn set_name(&mut self, name: String) -> &mut Self {
-        self.name = name;
+    pub fn set_name(&mut self, name: impl Into<String>) -> &mut Self {
+        self.name = name.into();
         self
     }
-    pub fn set_desc(&mut self, desc: String) -> &mut Self {
-        self.description = desc;
+    pub fn set_desc(&mut self, desc: impl Into<String>) -> &mut Self {
+        self.description = desc.into();
         self
     }
-    pub fn set_weight(&mut self, weight: u32) -> &mut Self {
-        self.weight = weight;
+    pub fn set_weight(&mut self, weight_str: impl AsRef<str>) -> &mut Self {
+        self.weight = weight_str.as_ref().parse().unwrap_or_else(|err| {
+            println!("Could not parse: {err}\nSetting weight to default value:{DEFAULT_WEIGHT}");
+            DEFAULT_WEIGHT
+        });
         self
     }
-    pub fn add_tag(&mut self, tag: String) -> &mut Self {
-        self.tags.insert(tag);
+    pub fn add_tag(&mut self, tag: impl Into<String>) -> &mut Self {
+        self.tags.insert(tag.into());
+        self
+    }
+    pub fn clear_tags(&mut self) -> &mut Self {
+        self.tags.clear();
         self
     }
 }
@@ -158,7 +165,7 @@ impl Display for Task {
             .join(" ");
         write!(
             f,
-            "{},{},{},{},",
+            "{},{},{},{}",
             self.name, self.description, self.weight, tags
         )
     }

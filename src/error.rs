@@ -6,25 +6,20 @@ pub enum HeapError {
     FileError(std::io::Error),
     FileDoesNotExist,
     RequiresTask(String),
-    DescriptionError(String),
-    WeightError(String),
-    PushError(String),
+    TagCannotBeEmpty,
 }
 impl fmt::Display for HeapError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use HeapError::*;
         match self {
-            HeapError::FileError(e) => write!(f, "File Input Error: {}", e),
-            HeapError::CorruptData(str) => {
+            FileError(e) => write!(f, "File Input Error: {}", e),
+            CorruptData(str) => {
                 write!(f, "Data row is corrupt:{str}")
             }
             //HeapError::CorruptKey(e) => write!(f, "Parsing Error: {}", e),
-            HeapError::FileDoesNotExist => write!(f, "File does not exist."),
-            HeapError::RequiresTask(str) => write!(f, "A task is required to define a {str}."),
-            HeapError::PushError(str) => write!(f, "--push: {str}."),
-            HeapError::DescriptionError(str) => write!(f, "--description: {str}"),
-            HeapError::WeightError(str) => {
-                write!(f, "--weight: {str}")
-            }
+            FileDoesNotExist => write!(f, "File does not exist."),
+            RequiresTask(str) => write!(f, "A task is required to define a {str}."),
+            TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or whitespace"),
         }
     }
 }

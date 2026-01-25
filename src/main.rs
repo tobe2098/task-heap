@@ -38,11 +38,11 @@ fn join_args(args_iterator: &mut ArgsIter) -> String {
         // We proved 'Some' exists with peek(), so unwrap() is safe.
         let word = args_iterator.next().unwrap();
 
-        param.push(word);
+        param.push(word.trim().to_owned());
     }
     param.join(" ")
 }
-fn run_commands(command: Vec<Commands>) {
+fn run_commands(command: Vec<Commands>) -> Result<(), HeapError> {
     //-> Result<(), HeapError> {
     let mut task_heap = read_task_heap().unwrap_or_else(|err| {
         println!("Error reading the task heap:{err}.\nCreating a new heap...");
@@ -51,17 +51,44 @@ fn run_commands(command: Vec<Commands>) {
     let mut command_iter = command.into_iter().peekable();
     while let Some(command) = command_iter.next() {
         match command {
-            Push(argument) => {}
-            Description(argument) => {}
-            Weight(argument) => {}
-            Tag(argument) => {}
+            Push(ref argument) => {
+                let mut new_task = Task::from_arg(argument);
+                while let Some(qualifier) = command_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
+                    match qualifier {
+                        Description(desc) => {
+                            new_task.set_desc(desc);
+                        }
+                        Weight(weight_str) => {
+                            new_task.set_weight(weight_str);
+                        }
+                        Tag(tag) => {
+                            if tag.is_empty() {
+                                return Err(HeapError::TagCannotBeEmpty);
+                            }
+                            new_task.add_tag(tag);
+                        }
+                        //Cannot be a non-qualifier
+                        _ => unreachable!(),
+                    };
+                }
+                task_heap.insert(new_task.get_hash(), new_task);
+            }
             Pop => {}
-            Delete(argument) => {}
-            Edit(argument) => {}
+            Delete(ref argument) => {}
+            Edit(ref argument) => {}
+            ClearTags(ref argument) => {}
             List => {}
             Reset => {}
             Help => {}
+
+            Description(argument) | Weight(argument) | Tag(argument) | Untag(argument) => {
+                println!("Standalone task qualifiers are ignored: {argument}")
+            }
         }
+    }
+    match write_task_heap(task_heap) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(HeapError::FileError(e)),
     }
 }
 
@@ -69,14 +96,15 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let mut args_iterator = args.into_iter().skip(1).peekable();
 
-    let commands: Vec<Commands> = Vec::new();
+    let mut commands: Vec<Commands> = Vec::new();
 
     while let Some(arg) = args_iterator.next() {
         let contents = join_args(&mut args_iterator);
         commands.push(match arg.as_str() {
             "-u" | "--push" => Push(contents),
-            "-c" | "--description" => Description(contents),
-            "-t" | "--tag" => Tag(contents),
+            "-n" | "--description" => Description(contents),
+            "-at" | "--tag" => Tag(contents),
+            "-ut" | "--untag" => Untag(contents),
             "-w" | "--weight" => Weight(contents),
             "-o" | "--pop" => {
                 println!(">{contents} were ignored.");
@@ -88,6 +116,7 @@ fn main() {
                 Reset
             }
             "-e" | "--edit" => Edit(contents),
+            "-ct" | "--clear-tags" => ClearTags(contents),
             "-l" | "--list" => {
                 println!(">{contents} were ignored.");
                 List
@@ -101,19 +130,5 @@ fn main() {
                 continue;
             }
         });
-        match run_commands(&mut args_iterator, command, &mut prev_task, &mut task_heap) {
-            Ok(_) => (),
-            Err(e) => {
-                println!("Error:{e}");
-                match e {
-                    HeapError::DescriptionError(_) | HeapError::WeightError(_) => {
-                        println!("Task will not be appended.");
-                        prev_task = None;
-                        continue;
-                    }
-                    _ => (),
-                }
-            }
-        }
     }
 }
