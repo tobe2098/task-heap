@@ -112,6 +112,10 @@ impl Task {
         self.tags.insert(tag.into());
         self
     }
+    pub fn remove_tag(&mut self, tag: impl AsRef<str>) -> &mut Self {
+        self.tags.remove(tag.as_ref());
+        self
+    }
     pub fn clear_tags(&mut self) -> &mut Self {
         self.tags.clear();
         self

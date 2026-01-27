@@ -3,8 +3,9 @@ use error::HeapError;
 mod task;
 use task::Task;
 mod io;
-use io::{print_task_table, read_task_heap, write_task_heap};
+use io::{print_single_task, print_task_table, read_task_heap, write_task_heap};
 mod commands;
+use crate::{commands::Commands, io::get_yes_no};
 use commands::Commands::*;
 
 use rand::{distributions::WeightedIndex, prelude::*};
@@ -16,7 +17,6 @@ use std::{
     vec::IntoIter,
 };
 
-use crate::commands::Commands;
 type ArgsIter = Peekable<Skip<IntoIter<String>>>;
 type Hash = [u8; 32];
 type TaskHeap = HashMap<Hash, Task>;
@@ -75,12 +75,6 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
     while let Some(command) = command_iter.next() {
         match command {
             Push(ref argument) => {
-                if argument.is_empty() {
-                    return Err(HeapError::MissingArgument((
-                        "name".to_owned(),
-                        "push".to_owned(),
-                    )));
-                }
                 let mut new_task = Task::from_arg(argument);
                 while let Some(qualifier) = command_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
                     match qualifier {
@@ -91,9 +85,6 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                             new_task.set_weight(weight_str);
                         }
                         Tag(tag) => {
-                            if tag.is_empty() {
-                                return Err(HeapError::TagCannotBeEmpty);
-                            }
                             new_task.add_tag(tag);
                         }
                         //Cannot be a non-qualifier
@@ -110,20 +101,23 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                         _ => unreachable!(),
                     });
                 let tag_option: Option<&str> = tag.as_deref();
-                if let Some(tag) = tag_option
-                    && tag.is_empty()
-                {
-                    return Err(HeapError::TagCannotBeEmpty);
+                let tasks = extract_array_by_tag(&task_heap, tag_option, |tuple| tuple.1);
+                if tasks.is_empty() {
+                    match tag {
+                        Some(tag) => return Err(HeapError::NoTaggedElements(tag.to_owned())),
+                        None => return Err(HeapError::NoTasksOnHeap("pop".to_owned())),
+                    }
                 }
-                let weights =
-                    extract_array_by_tag(&task_heap, tag_option, |tuple| tuple.1.get_weight());
-                let hashes = extract_array_by_tag(&task_heap, tag_option, |tuple| tuple.0);
+                let weights: Vec<u32> = tasks.iter().map(|task| task.get_weight()).collect();
+                let hashes: Vec<Hash> = tasks.into_iter().map(|task| task.get_hash()).collect();
                 let distribution = WeightedIndex::new(&weights)
                     .expect("The set of tasks to choose from should not be empty");
                 let mut rng = thread_rng();
 
-                let selected_hash = *hashes[distribution.sample(&mut rng)];
-                let selected_task = &task_heap.get(&selected_hash).expect("Error with random number generation or elements selection");
+                let selected_hash = hashes[distribution.sample(&mut rng)];
+                let selected_task = &task_heap
+                    .get(&selected_hash)
+                    .expect("Error with random number generation or elements selection");
                 println!("The selected task for completion is:");
                 print_single_task(selected_task);
                 print!("Are you certain you can complete it? Are you a chicken or a penguin?");
@@ -135,10 +129,79 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                     println!("You gave up on the task. *Chicken noises*");
                 }
             }
-            Delete(ref argument) => {}
-            Edit(ref argument) => {}
-            ClearTags(ref argument) => {}
+            Delete(argument) => {
+                let tag = command_iter
+                    .next_if(|cmd| matches!(cmd, Tag(_)))
+                    .map(|cmd| match cmd {
+                        Tag(name) => name,
+                        _ => unreachable!(),
+                    });
+                let tasks = match tag {
+                    Some(tag) => {
+                        let task_vec =
+                            extract_array_by_tag(&task_heap, Some(&tag), |tuple| tuple.1);
+                        if task_vec.is_empty() {
+                            return Err(HeapError::NoTaggedElements(tag));
+                        } else {
+                            task_vec
+                        }
+                    }
+                    None => {
+                        if argument.is_empty() {
+                            return Err(HeapError::MissingArgument((
+                                "name or tag".to_owned(),
+                                "delete".to_owned(),
+                            )));
+                        }
+                        let hash = Task::hash_fn(&argument);
+                        let Some(task_ref) = task_heap.get(&hash) else {
+                            return Err(HeapError::TaskNotFound(argument));
+                        };
+                        vec![task_ref; 1]
+                    }
+                };
+                println!("To be deleted:");
+                print_task_table(&tasks);
+                print!("Are you sure you want to delete?");
+                let answer = get_yes_no()?;
+                if answer.to_lowercase() == "y" {
+                    let hashes_to_remove: Vec<Hash> =
+                        tasks.into_iter().map(|task| task.get_hash()).collect();
+                    for hash in hashes_to_remove {
+                        task_heap.remove(&hash);
+                    }
+                    println!("Tasks deleted. *Chicken noises*?");
+                }
+            }
+            Edit(ref argument) => {
+                let Some(task) = task_heap.get_mut(&Task::hash_fn(argument)) else {
+                    return Err(HeapError::TaskNotFound(argument.to_owned()));
+                };
+                while let Some(qualifier) = command_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
+                    match qualifier {
+                        Name(name) => {
+                            task.set_name(name);
+                        }
+                        Description(desc) => {
+                            task.set_desc(desc);
+                        }
+                        Weight(weight_str) => {
+                            task.set_weight(weight_str);
+                        }
+                        Tag(tag) => {
+                            task.add_tag(tag);
+                        }
+                        Untag(tag) => {
+                            task.remove_tag(tag);
+                        }
+                        //Cannot be a non-qualifier
+                        _ => unreachable!(),
+                    };
+                }
+            }
+            ClearTags(argument) => {}
             List => {}
+            Name(argument) => {}
             Reset => {}
             Help => {}
 
@@ -162,12 +225,54 @@ fn main() -> Result<(), HeapError> {
     while let Some(arg) = args_iterator.next() {
         let contents = join_args(&mut args_iterator);
         commands.push(match arg.as_str() {
-            "-u" | "--push" => Push(contents),
-            "-p" | "--description" => Description(contents),
-            "-n" | "--name" => Description(contents),
-            "-at" | "--tag" => Tag(contents),
-            "-ut" | "--untag" => Untag(contents),
-            "-w" | "--weight" => Weight(contents),
+            "-u" | "--push" => {
+                if contents.is_empty() {
+                    return Err(HeapError::MissingArgument((
+                        "name".to_owned(),
+                        "push".to_owned(),
+                    )));
+                }
+                Push(contents)
+            }
+            "-p" | "--description" => {
+                if contents.is_empty() {
+                    return Err(HeapError::MissingArgument((
+                        "description".to_owned(),
+                        "description".to_owned(),
+                    )));
+                }
+                Description(contents)
+            }
+            "-n" | "--name" => {
+                if contents.is_empty() {
+                    return Err(HeapError::MissingArgument((
+                        "name".to_owned(),
+                        "name".to_owned(),
+                    )));
+                }
+                Name(contents)
+            }
+            "-at" | "--tag" => {
+                if contents.contains(" ") || contents.is_empty() {
+                    return Err(HeapError::TagCannotBeEmpty);
+                }
+                Tag(contents)
+            }
+            "-ut" | "--untag" => {
+                if contents.contains(" ") || contents.is_empty() {
+                    return Err(HeapError::TagCannotBeEmpty);
+                }
+                Untag(contents)
+            }
+            "-w" | "--weight" => {
+                if contents.is_empty() {
+                    return Err(HeapError::MissingArgument((
+                        "weight number".to_owned(),
+                        "weight".to_owned(),
+                    )));
+                }
+                Weight(contents)
+            }
             "-o" | "--pop" => {
                 if !contents.is_empty() {
                     return Err(HeapError::DoesNotTakeArg("pop".to_owned()));
@@ -175,14 +280,31 @@ fn main() -> Result<(), HeapError> {
                 Pop
             }
             "-d" | "--delete" => Delete(contents),
+            // Needs to know if there are tags to consider the arg is incomplete
             "-r" | "--reset" => {
                 if !contents.is_empty() {
                     return Err(HeapError::DoesNotTakeArg("reset".to_owned()));
                 }
                 Reset
             }
-            "-e" | "--edit" => Edit(contents),
-            "-ct" | "--clear-tags" => ClearTags(contents),
+            "-e" | "--edit" => {
+                if contents.is_empty() {
+                    return Err(HeapError::MissingArgument((
+                        "name".to_owned(),
+                        "edit".to_owned(),
+                    )));
+                }
+                Edit(contents)
+            }
+            "-ct" | "--clear-tags" => {
+                if contents.is_empty() {
+                    return Err(HeapError::MissingArgument((
+                        "name".to_owned(),
+                        "clear-tags".to_owned(),
+                    )));
+                }
+                ClearTags(contents)
+            }
             "-l" | "--list" => {
                 if !contents.is_empty() {
                     return Err(HeapError::DoesNotTakeArg("list".to_owned()));

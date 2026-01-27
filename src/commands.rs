@@ -1,5 +1,6 @@
 pub enum Commands {
     Push(String),
+    Name(String),
     Description(String),
     Weight(String),
     Tag(String),
@@ -31,7 +32,11 @@ impl Commands {
             // Edit accepts specific fields
             (
                 Commands::Edit(_),
-                Self::Description(_) | Self::Weight(_) | Self::Tag(_) | Self::Untag(_),
+                Self::Name(_)
+                | Self::Description(_)
+                | Self::Weight(_)
+                | Self::Tag(_)
+                | Self::Untag(_),
             ) => true,
 
             //List accepts tag and weight (for now equal, but <> in future)
