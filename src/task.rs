@@ -88,7 +88,10 @@ impl Task {
     //    Ok(Task::new(name, description, weight, tags))
     //}
     pub fn get_hash(&self) -> [u8; 32] {
-        sha2::Sha256::digest(self.get_name()).into()
+        Task::hash_fn(&self.name)
+    }
+    pub fn hash_fn(variable: &str) -> [u8; 32] {
+        sha2::Sha256::digest(variable).into()
     }
     pub fn set_name(&mut self, name: impl Into<String>) -> &mut Self {
         self.name = name.into();

@@ -5,8 +5,10 @@ pub enum HeapError {
     //CorruptKey(String),
     FileError(std::io::Error),
     FileDoesNotExist,
-    RequiresTask(String),
+    MissingArgument((String, String)),
+    DoesNotTakeArg(String),
     TagCannotBeEmpty,
+    TaskNotFound(String),
 }
 impl fmt::Display for HeapError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -17,9 +19,11 @@ impl fmt::Display for HeapError {
                 write!(f, "Data row is corrupt:{str}")
             }
             //HeapError::CorruptKey(e) => write!(f, "Parsing Error: {}", e),
-            FileDoesNotExist => write!(f, "File does not exist."),
-            RequiresTask(str) => write!(f, "A task is required to define a {str}."),
+            FileDoesNotExist => write!(f, "File does not exist"),
+            MissingArgument((arg, cmd)) => write!(f, "A {arg} is required for --{cmd}"),
+            DoesNotTakeArg(str) => write!(f, "--{str} does not take arguments"),
             TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or whitespace"),
+            TaskNotFound(name) => writeln!(f, "Task \"{name}\" was not found"),
         }
     }
 }

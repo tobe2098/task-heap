@@ -2,7 +2,7 @@ use crate::{HeapError, Task};
 use std::{
     collections::HashMap,
     env, fs,
-    io::{self, BufRead, BufReader, Write},
+    io::{self, BufRead, BufReader, Write, stdin, stdout},
     path::PathBuf,
     str::FromStr,
 };
@@ -24,7 +24,7 @@ pub fn write_task_heap(heap: HashMap<[u8; 32], Task>) -> std::io::Result<()> {
         .append(true)
         .open(db_path)?;
     for (_, task) in heap {
-        match writeln!(&db_file, "{}", task.to_string()) {
+        match writeln!(&db_file, "{}", task) {
             Ok(()) => (),
             Err(e) => {
                 println!("File write error:{e}")
@@ -55,7 +55,7 @@ pub fn read_task_heap() -> Result<HashMap<[u8; 32], Task>, HeapError> {
         Err(HeapError::FileDoesNotExist)
     }
 }
-pub fn print_task_table(tasks: Vec<&Task>) {
+pub fn print_task_table(tasks: &Vec<&Task>) {
     let term_width = if let Some((Width(w), _)) = terminal_size() {
         w as usize
     } else {
@@ -130,5 +130,22 @@ fn truncate(s: &str, max_width: usize) -> String {
         format!("{}..", &s[..max_width - 2])
     } else {
         s.to_string()
+    }
+}
+pub fn print_single_task(task: &Task) {
+    print_task_table(&vec![task; 1]);
+}
+pub fn get_yes_no() -> Result<String, HeapError> {
+    print!("[y/n]: ");
+    stdout().flush().unwrap(); //Flush so prompt appears before user input.
+
+    let mut input = String::new();
+
+    match stdin().read_line(&mut input) {
+        Ok(_) => {
+            input = input.trim().to_owned();
+            Ok(input)
+        }
+        Err(e) => Err(HeapError::FileError(e)),
     }
 }
