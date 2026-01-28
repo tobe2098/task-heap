@@ -1,0 +1,29 @@
+name: Source Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Source Tarball
+        run: |
+          # Use git archive to create a clean tarball of the current reference (tag)
+          # This automatically respects .gitattributes (e.g., if you want to exclude files)
+          git archive --format=tar.gz --output=task-heap-source-${{ github.ref_name }}.tar.gz HEAD
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            task-heap-source-*.tar.gz
+          generate_release_notes: true
