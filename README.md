@@ -140,6 +140,14 @@ task-heap -r
 
 ```
 
+### 7. Chain commands!
+
+You can chain commands for ease of use. All operations will be cancelled if there is at least one error, so the task heap's state will never be corrupted.
+
+```
+task-heap -i task1 -i task2 -p sth -w 2 -i task3 -o -l
+```
+
 ---
 
 ## Command Reference
