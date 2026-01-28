@@ -233,13 +233,45 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                     };
                 }
             }
-            ClearTags(argument) => {}
-            List => {}
-            Name(argument) => {}
-            Reset => {}
-            Help => {}
+            ClearTags(argument) => {
+                let Some(task) = task_heap.get_mut(&Task::hash_fn(&argument)) else {
+                    return Err(HeapError::TaskNotFound(argument.to_owned()));
+                };
+                task.clear_tags();
+            }
+            List => {
+                let tag = command_iter
+                    .next_if(|cmd| matches!(cmd, Tag(_)))
+                    .map(|cmd| match cmd {
+                        Tag(name) => name,
+                        _ => unreachable!(),
+                    });
+                let tag_option: Option<&str> = tag.as_deref();
+                let tasks = extract_array_by_tag(&task_heap, tag_option, |tuple| tuple.1);
+                if tasks.is_empty() {
+                    match tag {
+                        Some(tag) => return Err(HeapError::NoTaggedElements(tag.to_owned())),
+                        None => return Err(HeapError::NoTasksOnHeap),
+                    }
+                }
+                print_task_table(&tasks);
+            }
+            Reset => {
+                print!("Are you sure you want to erase your task heap?");
+                let answer = get_yes_no()?;
+                if answer.to_lowercase() == "y" {
+                    task_heap.clear();
+                }
+            }
+            Help => {
+                print_help();
+            }
 
-            Description(argument) | Weight(argument) | Tag(argument) | Untag(argument) => {
+            Name(argument)
+            | Description(argument)
+            | Weight(argument)
+            | Tag(argument)
+            | Untag(argument) => {
                 println!("Standalone task qualifiers are ignored: {argument}")
             }
         }
