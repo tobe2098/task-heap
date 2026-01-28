@@ -1,4 +1,5 @@
 use crate::{HeapError, Task};
+use directories::ProjectDirs;
 use std::{
     collections::HashMap,
     env, fs,
@@ -9,14 +10,26 @@ use std::{
 use terminal_size::{Width, terminal_size};
 use textwrap::wrap;
 fn get_db_path() -> PathBuf {
-    let db_path: String = env::var("TASK_HEAP_DBPATH").unwrap_or_else(|_| {
-        let home_path: String = env::var("HOME").unwrap();
-        format!("{home_path}/.local/share/task-heap/heap.csv")
-    });
-    PathBuf::from_str("./db.csv").unwrap()
-    //PathBuf::from_str(&db_path).unwrap()
-}
+    match env::var("TASK_HEAP_DBPATH") {
+        Ok(path) => PathBuf::from_str(&path).unwrap().join("./db.csv"),
+        Err(_) => {
+            if let Some(proj_dirs) = ProjectDirs::from("com", "tobe", "task-heap") {
+                // 2. Get the specific data directory (e.g., AppData/Roaming/task-heap)
+                let data_dir = proj_dirs.data_dir();
 
+                // 3. Create the directory if it doesn't exist (Crucial for first run!)
+                if !data_dir.exists() {
+                    fs::create_dir_all(data_dir).expect("Could not create data directory");
+                }
+
+                // 4. Append your filename
+                data_dir.join("./db.csv")
+            } else {
+                PathBuf::from("./db.csv")
+            }
+        }
+    }
+}
 pub fn write_task_heap(heap: HashMap<[u8; 32], Task>) -> std::io::Result<()> {
     let db_path = get_db_path();
     let db_file: fs::File = fs::OpenOptions::new()
@@ -27,7 +40,7 @@ pub fn write_task_heap(heap: HashMap<[u8; 32], Task>) -> std::io::Result<()> {
         match writeln!(&db_file, "{}", task) {
             Ok(()) => (),
             Err(e) => {
-                println!("File write error:{e}")
+                println!("File write error: {e}")
             }
         }
     }

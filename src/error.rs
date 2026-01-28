@@ -19,7 +19,7 @@ impl fmt::Display for HeapError {
         match self {
             FileError(e) => write!(f, "File Input Error: {}", e),
             CorruptData(str) => {
-                write!(f, "Data row is corrupt:{str}")
+                write!(f, "Data row is corrupt: {str}")
             }
             //HeapError::CorruptKey(e) => write!(f, "Parsing Error: {}", e),
             FileDoesNotExist => write!(f, "File does not exist"),

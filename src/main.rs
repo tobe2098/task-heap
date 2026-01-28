@@ -1,7 +1,6 @@
-//TODO: multiple tags
 //TODO: store hash
-//TODO: multi-platform storage
 //TODO: Move to stack?
+//TODO: Multiple stacks, the stacks are in a heap
 mod error;
 use error::HeapError;
 mod task;
@@ -52,7 +51,7 @@ fn print_help() {
     println!("Options:");
     println!("\t-n, --name              Specify a new name when editing a task.");
     println!();
-    println!("\t-d, --description       Specify a description when creating or");
+    println!("\t-p, --description       Specify a description when creating or");
     println!("                          editing a task.");
     println!();
     println!("\t-t, --tag               Specify a number of single-word tags to");
@@ -93,7 +92,7 @@ where
 fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
     //-> Result<(), HeapError> {
     let mut task_heap = read_task_heap().unwrap_or_else(|err| {
-        println!("Error reading the task heap:{err}.\nCreating a new heap...");
+        println!("Error reading the task heap: {err}.\nCreating a new heap...");
         HashMap::new()
     });
     let mut command_iter = commands.into_iter().peekable();
