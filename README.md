@@ -14,9 +14,11 @@
 
 Ensure you have [Rust and Cargo installed](https://www.rust-lang.org/tools/install).
 
-1. Clone the repository:
+1. Download the desired version's [tarball](https://github.com/tobe2098/task-heap/releases).
+
+2. Unpack the tarball:
 ```bash
-git clone https://github.com/yourusername/task-heap.git
+tar -xvf task-heap-version.tar.gz
 cd task-heap
 
 ```
