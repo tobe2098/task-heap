@@ -26,11 +26,42 @@ type TaskHeap = HashMap<Hash, Task>;
 fn print_help() {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     println!("task-heap v{VERSION} prints tasks");
-    println!("Usage:");
-    println!("task-heap --push | push task description");
-    println!("task-heap --pull | pull");
-    println!("task-heap --list | ls");
-    println!("task-heap --help | -h");
+    println!("Usage: task-heap ([--action] [--options])*");
+    println!();
+    println!("Actions:");
+    println!("\t-i, --push              Push a task by name onto the task heap,");
+    println!("                          with optional tags and description.");
+    println!();
+    println!("\t-o, --pop               Pop a task at random from the task heap");
+    println!("                          by weight, with optional tag filter.");
+    println!();
+    println!("\t-d, --delete            Delete a task by name or by tag.");
+    println!();
+    println!("\t-r, --reset             Delete all tasks.");
+    println!();
+    println!("\t-e, --edit              Edit a task's name, description, tags or");
+    println!("                          weight.");
+    println!();
+    println!("\t-ct, --clear-tags       Clear all tags from a task by name.");
+    println!();
+    println!("\t-l, --list              List all tasks or tasks filtered by tag.");
+    println!();
+    println!("\t-h, --help              Print this message.");
+    println!();
+    println!("Options:");
+    println!("\t-n, --name              Specify a new name when editing a task.");
+    println!();
+    println!("\t-d, --description       Specify a description when creating or");
+    println!("                          editing a task.");
+    println!();
+    println!("\t-t, --tag               Specify a number of single-word tags to");
+    println!("                          add to a task, or to filter tasks by.");
+    println!();
+    println!("\t-ut, --untag            Specify a number of single-word tags to");
+    println!("                          remove from a task when editing.");
+    println!();
+    println!("\t-n, --name              Specify a new name when editing a task.");
+    println!();
 }
 
 fn join_args(args_iterator: &mut ArgsIter) -> String {
@@ -228,7 +259,7 @@ fn main() -> Result<(), HeapError> {
     while let Some(arg) = args_iterator.next() {
         let contents = join_args(&mut args_iterator);
         commands.push(match arg.as_str() {
-            "-u" | "--push" => {
+            "-i" | "--push" => {
                 if contents.is_empty() {
                     return Err(HeapError::MissingArgument((
                         "name".to_owned(),
