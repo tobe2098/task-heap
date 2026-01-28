@@ -80,22 +80,12 @@ fn join_args(args_iterator: &mut ArgsIter) -> String {
     param.join(" ")
 }
 
-fn extract_array_by_tag<'a, F, R>(
-    map: &'a TaskHeap,
-    tag: Option<impl AsRef<str>>,
-    closure: F,
-) -> Vec<R>
+fn extract_array_by_tag<'a, F, R>(map: &'a TaskHeap, tags: &Vec<String>, closure: F) -> Vec<R>
 where
     F: FnMut((&'a Hash, &'a Task)) -> R,
 {
     map.iter()
-        .filter(|tuple| {
-            if let Some(ref tag_name) = tag {
-                tuple.1.has_tag(tag_name)
-            } else {
-                true
-            }
-        })
+        .filter(|tuple| tuple.1.has_tags(tags))
         .map(closure)
         .collect()
 }
@@ -122,8 +112,8 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                         Weight(weight_str) => {
                             new_task.set_weight(weight_str);
                         }
-                        Tag(tag) => {
-                            new_task.add_tag(tag);
+                        Tag(tags) => {
+                            new_task.add_tags(tags);
                         }
                         //Cannot be a non-qualifier
                         _ => unreachable!(),
@@ -132,18 +122,19 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                 task_heap.insert(new_task.get_hash(), new_task);
             }
             Pop => {
-                let tag = command_iter
+                let tags = command_iter
                     .next_if(|cmd| matches!(cmd, Tag(_)))
                     .map(|cmd| match cmd {
-                        Tag(name) => name,
+                        Tag(names) => names,
                         _ => unreachable!(),
-                    });
-                let tag_option: Option<&str> = tag.as_deref();
-                let tasks = extract_array_by_tag(&task_heap, tag_option, |tuple| tuple.1);
+                    })
+                    .unwrap_or_default();
+                let tasks = extract_array_by_tag(&task_heap, &tags, |tuple| tuple.1);
                 if tasks.is_empty() {
-                    match tag {
-                        Some(tag) => return Err(HeapError::NoTaggedElements(tag.to_owned())),
-                        None => return Err(HeapError::NoTasksOnHeap),
+                    if !tags.is_empty() {
+                        return Err(HeapError::NoTaggedElements(tags.join(",")));
+                    } else {
+                        return Err(HeapError::NoTasksOnHeap);
                     }
                 }
                 let weights: Vec<u32> = tasks.iter().map(|task| task.get_weight()).collect();
@@ -168,23 +159,23 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                 }
             }
             Delete(argument) => {
-                let tag = command_iter
+                let tags = command_iter
                     .next_if(|cmd| matches!(cmd, Tag(_)))
                     .map(|cmd| match cmd {
-                        Tag(name) => name,
+                        Tag(names) => names,
                         _ => unreachable!(),
-                    });
-                let tasks = match tag {
-                    Some(tag) => {
-                        let task_vec =
-                            extract_array_by_tag(&task_heap, Some(&tag), |tuple| tuple.1);
+                    })
+                    .unwrap_or_default();
+                let tasks = match tags {
+                    tags if !tags.is_empty() => {
+                        let task_vec = extract_array_by_tag(&task_heap, &tags, |tuple| tuple.1);
                         if task_vec.is_empty() {
-                            return Err(HeapError::NoTaggedElements(tag));
+                            return Err(HeapError::NoTaggedElements(tags.join(",")));
                         } else {
                             task_vec
                         }
                     }
-                    None => {
+                    _ => {
                         if argument.is_empty() {
                             return Err(HeapError::MissingArgument((
                                 "name or tag".to_owned(),
@@ -228,11 +219,11 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                         Weight(weight_str) => {
                             task.set_weight(weight_str);
                         }
-                        Tag(tag) => {
-                            task.add_tag(tag);
+                        Tag(tags) => {
+                            task.add_tags(tags);
                         }
-                        Untag(tag) => {
-                            task.remove_tag(tag);
+                        Untag(tags) => {
+                            task.remove_tags(tags);
                         }
                         //Cannot be a non-qualifier
                         _ => unreachable!(),
@@ -252,18 +243,19 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                 task.clear_tags();
             }
             List => {
-                let tag = command_iter
+                let tags = command_iter
                     .next_if(|cmd| matches!(cmd, Tag(_)))
                     .map(|cmd| match cmd {
-                        Tag(name) => name,
+                        Tag(names) => names,
                         _ => unreachable!(),
-                    });
-                let tag_option: Option<&str> = tag.as_deref();
-                let tasks = extract_array_by_tag(&task_heap, tag_option, |tuple| tuple.1);
+                    })
+                    .unwrap_or_default();
+                let tasks = extract_array_by_tag(&task_heap, &tags, |tuple| tuple.1);
                 if tasks.is_empty() {
-                    match tag {
-                        Some(tag) => return Err(HeapError::NoTaggedElements(tag.to_owned())),
-                        None => return Err(HeapError::NoTasksOnHeap),
+                    if tags.is_empty() {
+                        return Err(HeapError::NoTaggedElements(tags.join(",")));
+                    } else {
+                        return Err(HeapError::NoTasksOnHeap);
                     }
                 }
                 print_task_table(&tasks);
@@ -279,12 +271,11 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                 print_help();
             }
 
-            Name(argument)
-            | Description(argument)
-            | Weight(argument)
-            | Tag(argument)
-            | Untag(argument) => {
+            Name(argument) | Description(argument) | Weight(argument) => {
                 println!("Standalone task qualifiers are ignored: {argument}")
+            }
+            Tag(argument) | Untag(argument) => {
+                println!("Standalone task qualifiers are ignored: {argument:?}")
             }
         }
     }
@@ -301,7 +292,7 @@ fn main() -> Result<(), HeapError> {
     let mut commands: Vec<Commands> = Vec::new();
 
     while let Some(arg) = args_iterator.next() {
-        let contents = join_args(&mut args_iterator);
+        let contents: String = join_args(&mut args_iterator);
         commands.push(match arg.as_str() {
             "-i" | "--push" => {
                 if contents.is_empty() {
@@ -331,16 +322,26 @@ fn main() -> Result<(), HeapError> {
                 Name(contents)
             }
             "-at" | "--tag" => {
-                if contents.contains(" ") || contents.is_empty() {
+                let tags: Vec<String> = contents
+                    .split(",")
+                    .map(|str| str.trim().to_owned())
+                    .filter(|s| !s.is_empty() || !s.contains(""))
+                    .collect();
+                if tags.is_empty() {
                     return Err(HeapError::TagCannotBeEmpty);
                 }
-                Tag(contents)
+                Tag(tags)
             }
             "-ut" | "--untag" => {
-                if contents.contains(" ") || contents.is_empty() {
+                let tags: Vec<String> = contents
+                    .split(",")
+                    .map(|str| str.trim().to_owned())
+                    .filter(|s| !s.is_empty() || !s.contains(""))
+                    .collect();
+                if tags.is_empty() {
                     return Err(HeapError::TagCannotBeEmpty);
                 }
-                Untag(contents)
+                Untag(tags)
             }
             "-w" | "--weight" => {
                 if contents.is_empty() {

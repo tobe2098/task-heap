@@ -108,12 +108,16 @@ impl Task {
         });
         self
     }
-    pub fn add_tag(&mut self, tag: impl Into<String>) -> &mut Self {
-        self.tags.insert(tag.into());
+    pub fn add_tags(&mut self, tags: Vec<String>) -> &mut Self {
+        for tag in tags {
+            self.tags.insert(tag);
+        }
         self
     }
-    pub fn remove_tag(&mut self, tag: impl AsRef<str>) -> &mut Self {
-        self.tags.remove(tag.as_ref());
+    pub fn remove_tags(&mut self, tags: Vec<String>) -> &mut Self {
+        for tag in tags {
+            self.tags.remove(&tag);
+        }
         self
     }
     pub fn clear_tags(&mut self) -> &mut Self {
@@ -123,8 +127,8 @@ impl Task {
     pub fn get_weight(&self) -> u32 {
         self.weight
     }
-    pub fn has_tag(&self, tag: impl AsRef<str>) -> bool {
-        self.tags.contains(tag.as_ref())
+    pub fn has_tags(&self, tags: &Vec<String>) -> bool {
+        tags.iter().all(|tag| self.tags.contains(tag))
     }
     pub fn get_tags(&self) -> Vec<&str> {
         self.tags.iter().map(|s| s.as_ref()).collect()

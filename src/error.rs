@@ -28,7 +28,7 @@ impl fmt::Display for HeapError {
             TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or contain whitespace."),
             TaskNotFound(name) => writeln!(f, "Task \"{name}\" was not found."),
             TaskAlreadyExists(name) => writeln!(f, "Task \"{name}\" already exists."),
-            NoTaggedElements(tag) => writeln!(f, "No elements found with tag {tag}."),
+            NoTaggedElements(tag) => writeln!(f, "No elements found where tags {tag} intersect."),
             NoTasksOnHeap => writeln!(f, "No tasks found in the heap."),
         }
     }
