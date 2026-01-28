@@ -10,7 +10,7 @@ pub enum HeapError {
     TagCannotBeEmpty,
     NoTaggedElements(String),
     TaskNotFound(String),
-    NoTasksOnHeap(String),
+    NoTasksOnHeap,
 }
 impl fmt::Display for HeapError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -22,12 +22,12 @@ impl fmt::Display for HeapError {
             }
             //HeapError::CorruptKey(e) => write!(f, "Parsing Error: {}", e),
             FileDoesNotExist => write!(f, "File does not exist"),
-            MissingArgument((arg, cmd)) => write!(f, "A {arg} is required for --{cmd}"),
-            DoesNotTakeArg(str) => write!(f, "--{str} does not take arguments"),
-            TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or contain whitespace"),
-            TaskNotFound(name) => writeln!(f, "Task \"{name}\" was not found"),
-            NoTaggedElements(tag) => writeln!(f, "No elements found with tag {tag}"),
-            NoTasksOnHeap(cmd) => writeln!(f, "No tasks found in the heap for --{cmd}"),
+            MissingArgument((arg, cmd)) => write!(f, "A {arg} is required for --{cmd}."),
+            DoesNotTakeArg(str) => write!(f, "--{str} does not take arguments."),
+            TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or contain whitespace."),
+            TaskNotFound(name) => writeln!(f, "Task \"{name}\" was not found."),
+            NoTaggedElements(tag) => writeln!(f, "No elements found with tag {tag}."),
+            NoTasksOnHeap => writeln!(f, "No tasks found in the heap."),
         }
     }
 }

@@ -1,3 +1,6 @@
+//TODO: multiple tags
+//TODO: store hash
+//TODO: multi-platform storage
 mod error;
 use error::HeapError;
 mod task;
@@ -105,7 +108,7 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                 if tasks.is_empty() {
                     match tag {
                         Some(tag) => return Err(HeapError::NoTaggedElements(tag.to_owned())),
-                        None => return Err(HeapError::NoTasksOnHeap("pop".to_owned())),
+                        None => return Err(HeapError::NoTasksOnHeap),
                     }
                 }
                 let weights: Vec<u32> = tasks.iter().map(|task| task.get_weight()).collect();
