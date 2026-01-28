@@ -10,6 +10,7 @@ pub enum HeapError {
     TagCannotBeEmpty,
     NoTaggedElements(String),
     TaskNotFound(String),
+    TaskAlreadyExists(String),
     NoTasksOnHeap,
 }
 impl fmt::Display for HeapError {
@@ -26,6 +27,7 @@ impl fmt::Display for HeapError {
             DoesNotTakeArg(str) => write!(f, "--{str} does not take arguments."),
             TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or contain whitespace."),
             TaskNotFound(name) => writeln!(f, "Task \"{name}\" was not found."),
+            TaskAlreadyExists(name) => writeln!(f, "Task \"{name}\" already exists."),
             NoTaggedElements(tag) => writeln!(f, "No elements found with tag {tag}."),
             NoTasksOnHeap => writeln!(f, "No tasks found in the heap."),
         }

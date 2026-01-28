@@ -1,6 +1,7 @@
 //TODO: multiple tags
 //TODO: store hash
 //TODO: multi-platform storage
+//TODO: Move to stack?
 mod error;
 use error::HeapError;
 mod task;
@@ -109,6 +110,9 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
     while let Some(command) = command_iter.next() {
         match command {
             Push(ref argument) => {
+                if task_heap.contains_key(&Task::hash_fn(argument)) {
+                    return Err(HeapError::TaskAlreadyExists(argument.to_owned()));
+                };
                 let mut new_task = Task::from_arg(argument);
                 while let Some(qualifier) = command_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
                     match qualifier {
@@ -211,10 +215,12 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                 let Some(task) = task_heap.get_mut(&Task::hash_fn(argument)) else {
                     return Err(HeapError::TaskNotFound(argument.to_owned()));
                 };
+                let mut rehash = false;
                 while let Some(qualifier) = command_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
                     match qualifier {
                         Name(name) => {
                             task.set_name(name);
+                            rehash = true;
                         }
                         Description(desc) => {
                             task.set_desc(desc);
@@ -231,6 +237,12 @@ fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
                         //Cannot be a non-qualifier
                         _ => unreachable!(),
                     };
+                }
+                if rehash {
+                    let Some(updated_task) = task_heap.remove(&Task::hash_fn(argument)) else {
+                        unreachable!();
+                    };
+                    task_heap.insert(updated_task.get_hash(), updated_task);
                 }
             }
             ClearTags(argument) => {
