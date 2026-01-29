@@ -1,97 +1,53 @@
 use core::fmt;
-use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-use crate::HeapError;
+use crate::{HeapError, Weight, utils::DEFAULT_WEIGHT};
 
-use sha2::Digest;
-
-const DEFAULT_WEIGHT: u32 = 100;
+enum TaskStatus {
+    Unstaged,
+    Staged,
+    Finished,
+}
+impl fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Unstaged => write!(f, "0"),
+            Staged => write!(f, "1"),
+            Finished => write!(f, "2"),
+        }
+    }
+}
+use TaskStatus::*;
 
 pub struct Task {
-    name: String,
-    description: String,
-    weight: u32,
-    tags: HashSet<String>,
+    pub name: String,
+    pub description: String,
+    pub weight: Weight,
+    pub status: TaskStatus,
 }
 impl Task {
-    pub fn new(
+    fn new(
         name: impl Into<String>,
         description: impl Into<String>,
-        weight: u32,
-        tags: HashSet<String>,
+        weight: Weight,
+        status: TaskStatus,
     ) -> Self {
         Self {
             name: name.into(),
             description: description.into(),
             weight,
-            tags,
+            status,
         }
     }
-    pub fn from_arg(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            description: "".to_owned(),
-            weight: DEFAULT_WEIGHT,
-            tags: HashSet::new(),
-        }
+    pub fn from_name(name: impl Into<String>) -> Self {
+        Task::new(name, "...", DEFAULT_WEIGHT, Unstaged)
     }
     pub fn get_name(&self) -> &str {
         &self.name
     }
     pub fn get_description(&self) -> &str {
         &self.description
-    }
-    //pub fn to_csv(&self) -> String {
-    //    let mut tags = Vec::new();
-    //    for tag in &self.tags {
-    //        tags.push(tag.to_owned());
-    //    }
-    //    let tags = tags.join(" ");
-    //    format!(
-    //        "{},{},{},{}",
-    //        self.name, self.description, self.weight, tags
-    //    )
-    //}
-    //pub fn from_csv(csv_line: impl Into<String>) -> Result<Self, HeapError> {
-    //    let csv_line = csv_line.into();
-    //    let mut parts = csv_line.split(',');
-
-    //    // Use '?' to exit early if a field is missing
-    //    let name = parts
-    //        .next()
-    //        .ok_or_else(|| HeapError::CorruptData("No name found".to_string()))?;
-    //    let description = parts.next().unwrap_or_default();
-    //    let weight = parts
-    //        .next()
-    //        .and_then(|w| w.parse().ok())
-    //        .unwrap_or(DEFAULT_WEIGHT);
-
-    //    let tags = parts
-    //        .next()
-    //        .unwrap_or("")
-    //        .split_whitespace()
-    //        .map(String::from)
-    //        .collect();
-    //    //let elements: Vec<&str> = csv_line.split(',').collect();
-    //    //let [name, description, weight_str, tags_str] = elements.as_slice() else {
-    //    //    return Err(HeapError::CorruptData(csv_line));
-    //    //};
-
-    //    //let weight: u32 = weight_str.parse().unwrap_or(DEFAULT_WEIGHT);
-    //    //let tags = tags_str.split(" ").map(String::from).collect();
-    //    //let mut tags: HashSet<String> = HashSet::new();
-    //    //for tag in elements[index].split(" ").into_iter() {
-    //    //    tags.insert(tag.to_owned());
-    //    //}
-    //    Ok(Task::new(name, description, weight, tags))
-    //}
-    pub fn get_hash(&self) -> [u8; 32] {
-        Task::hash_fn(&self.name)
-    }
-    pub fn hash_fn(variable: &str) -> [u8; 32] {
-        sha2::Sha256::digest(variable).into()
     }
     pub fn set_name(&mut self, name: impl Into<String>) -> &mut Self {
         self.name = name.into();
@@ -108,30 +64,29 @@ impl Task {
         });
         self
     }
-    pub fn add_tags(&mut self, tags: Vec<String>) -> &mut Self {
-        for tag in tags {
-            self.tags.insert(tag);
-        }
-        self
-    }
-    pub fn remove_tags(&mut self, tags: Vec<String>) -> &mut Self {
-        for tag in tags {
-            self.tags.remove(&tag);
-        }
-        self
-    }
-    pub fn clear_tags(&mut self) -> &mut Self {
-        self.tags.clear();
-        self
-    }
-    pub fn get_weight(&self) -> u32 {
+    pub fn get_weight(&self) -> Weight {
         self.weight
     }
-    pub fn has_tags(&self, tags: &Vec<String>) -> bool {
-        tags.iter().all(|tag| self.tags.contains(tag))
+    pub fn is_finished(&self) -> bool {
+        matches!(self.status, Finished)
     }
-    pub fn get_tags(&self) -> Vec<&str> {
-        self.tags.iter().map(|s| s.as_ref()).collect()
+    pub fn is_staged(&self) -> bool {
+        matches!(self.status, Staged)
+    }
+    pub fn is_unstaged(&self) -> bool {
+        matches!(self.status, Unstaged)
+    }
+    pub fn finish(&mut self) -> &mut Self {
+        self.status = Finished;
+        self
+    }
+    pub fn stage(&mut self) -> &mut Self {
+        self.status = Staged;
+        self
+    }
+    pub fn unstage(&mut self) -> &mut Self {
+        self.status = Unstaged;
+        self
     }
 }
 impl FromStr for Task {
@@ -163,14 +118,16 @@ impl FromStr for Task {
         };
 
         // 4. Tags: Collect remaining
-        let tags = parts
-            .next()
-            .unwrap_or("")
-            .split_whitespace()
-            .map(String::from)
-            .collect();
+        let status = match parts.next().unwrap_or("0").parse().unwrap_or(0) {
+            0 => Unstaged,
+            1 => Staged,
+            2 => Finished,
+            _ => {
+                return Err(HeapError::CorruptData(s.to_string()));
+            }
+        };
 
-        Ok(Task::new(name, description, weight, tags))
+        Ok(Task::new(name, description, weight, status))
     }
 }
 impl Display for Task {
@@ -180,16 +137,10 @@ impl Display for Task {
         //    tags.push(tag.to_owned());
         //}
         //let tags = tags.join(" ");
-        let tags: String = self
-            .tags
-            .iter()
-            .map(|s| s.to_owned())
-            .collect::<Vec<String>>()
-            .join(" ");
         write!(
             f,
             "{},{},{},{}",
-            self.name, self.description, self.weight, tags
+            self.name, self.description, self.weight, self.status
         )
     }
 }
