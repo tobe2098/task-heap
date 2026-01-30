@@ -3,6 +3,10 @@ name = "task-heap"
 version = "0.1.0"
 edition = "2024"
 
+description = "A tool to stack tasks and pop them randomly."
+license = "GPLv2"  # or "Apache-2.0", or "MIT OR Apache-2.0"
+repository = "https://github.com/tobe2098/task-heap"
+
 [dependencies]
 rand="^0.8.0"
 sha2="^0.10.0"
