@@ -7,6 +7,7 @@ use crate::{HeapError, Weight, utils::DEFAULT_WEIGHT};
 enum TaskStatus {
     Unstaged,
     Staged,
+    InProgress,
     Finished,
 }
 impl fmt::Display for TaskStatus {
@@ -14,7 +15,8 @@ impl fmt::Display for TaskStatus {
         match self {
             Unstaged => write!(f, "0"),
             Staged => write!(f, "1"),
-            Finished => write!(f, "2"),
+            InProgress => write!(f, "2"),
+            Finished => write!(f, "3"),
         }
     }
 }
@@ -70,6 +72,9 @@ impl Task {
     pub fn is_finished(&self) -> bool {
         matches!(self.status, Finished)
     }
+    pub fn is_in_progress(&self) -> bool {
+        matches!(self.status, InProgress)
+    }
     pub fn is_staged(&self) -> bool {
         matches!(self.status, Staged)
     }
@@ -78,6 +83,10 @@ impl Task {
     }
     pub fn finish(&mut self) -> &mut Self {
         self.status = Finished;
+        self
+    }
+    pub fn in_progress(&mut self) -> &mut Self {
+        self.status = InProgress;
         self
     }
     pub fn stage(&mut self) -> &mut Self {
@@ -121,7 +130,8 @@ impl FromStr for Task {
         let status = match parts.next().unwrap_or("0").parse().unwrap_or(0) {
             0 => Unstaged,
             1 => Staged,
-            2 => Finished,
+            2 => InProgress,
+            3 => Finished,
             _ => {
                 return Err(HeapError::CorruptData(s.to_string()));
             }

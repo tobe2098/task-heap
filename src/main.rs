@@ -1,28 +1,27 @@
 //TODO: store hash
 //TODO: Move to stack?
 //TODO: Multiple stacks, the stacks are in a heap
+//TODO: Single message for each command via help
+//Change storage to use a different separator/filter for non-separator chars.
+//Wrap errors in another error type to be able to get "push": "Missing argument"
+//Maybe move? within edit?
+//Uses for -a flag
+//For now, rigid args (req)
 mod error;
 use error::HeapError;
-mod task;
-use task::Task;
 mod io;
+mod task;
 use io::{print_single_task, print_task_table, read_task_heap, write_task_heap};
 mod commands;
-use crate::{commands::Commands, io::get_yes_no};
+use crate::{commands::Commands, io::get_yes_no, utils::TaskHeap};
 use commands::Commands::*;
+mod stack;
+mod utils;
+use utils::{Hash, Weight, extract_array_by_tag, get_non_opt_arg};
 
 use rand::{distributions::WeightedIndex, prelude::*};
-use std::{
-    collections::HashMap,
-    env,
-    io::{Write, stdin, stdout},
-    iter::{Peekable, Skip},
-    vec::IntoIter,
-};
+use std::env;
 
-type ArgsIter = Peekable<Skip<IntoIter<String>>>;
-type Hash = [u8; 32];
-type TaskHeap = HashMap<Hash, Task>;
 fn print_help() {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     println!("task-heap v{VERSION} prints tasks");
@@ -62,31 +61,23 @@ fn print_help() {
     println!();
     println!("\t-n, --name              Specify a new name when editing a task.");
     println!();
-}
-
-fn join_args(args_iterator: &mut ArgsIter) -> String {
-    let mut param = Vec::new();
-
-    while let Some(next_arg) = args_iterator.peek() {
-        if next_arg.starts_with("-") {
-            break;
-        }
-        // We proved 'Some' exists with peek(), so unwrap() is safe.
-        let word = args_iterator.next().unwrap();
-
-        param.push(word.trim().to_owned());
-    }
-    param.join(" ")
-}
-
-fn extract_array_by_tag<'a, F, R>(map: &'a TaskHeap, tags: &Vec<String>, closure: F) -> Vec<R>
-where
-    F: FnMut((&'a Hash, &'a Task)) -> R,
-{
-    map.iter()
-        .filter(|tuple| tuple.1.has_tags(tags))
-        .map(closure)
-        .collect()
+    //Add create, destroy (stack), delete is indexed (if no index it is a pop), insert is indexed (if no index it is a push) as well, and per stack.
+    //Two states, staged and unstaged.
+    //By default staged is the first task only, to stage more you need to specify
+    //Randomly popping is from staged piles of each stack
+    //When listing, show the stacks and their staged tasks, if list --stack name print the whole
+    //info about stack. list --all prints everything.
+    //Clear stack of finished tasks
+    //Push pop arg are for the stacks
+    //Stage unstage
+    //Do I move away from -- actions? No more chaining arguments?
+    //. action name --option aasdw daw daw d --option
+    //naming: stack:task because of edit? or edit-task vs edit-stack? Same problem.  edit vs
+    //edit stack --task name --options
+    //Undo with a Reverse action stack (prevact.csv)
+    //Settings:
+    //Only one task possible in progress (settings)?
+    //To use tag filter, just use the tag as a stack name
 }
 
 fn run_commands(commands: Vec<Commands>) -> Result<(), HeapError> {
