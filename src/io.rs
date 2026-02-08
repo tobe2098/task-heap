@@ -1,14 +1,74 @@
+use crate::utils::HeapMap;
 use crate::{HeapError, Task};
 use directories::ProjectDirs;
 use std::{
-    collections::HashMap,
     env, fs,
-    io::{self, BufRead, BufReader, Write, stdin, stdout},
+    io::{BufRead, BufReader, Write, stdin, stdout},
     path::PathBuf,
     str::FromStr,
 };
 use terminal_size::{Width, terminal_size};
 use textwrap::wrap;
+pub fn print_help() {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    println!("task-heap v{VERSION} prints tasks");
+    println!("Usage: task-heap ([--action] [--options])*");
+    println!();
+    println!("Actions:");
+    println!("\t-i, --push              Push a task by name onto the task heap,");
+    println!("                          with optional tags and description.");
+    println!();
+    println!("\t-o, --pop               Pop a task at random from the task heap");
+    println!("                          by weight, with optional tag filter.");
+    println!();
+    println!("\t-d, --delete            Delete a task by name or by tag.");
+    println!();
+    println!("\t-r, --reset             Delete all tasks.");
+    println!();
+    println!("\t-e, --edit              Edit a task's name, description, tags or");
+    println!("                          weight.");
+    println!();
+    println!("\t-ct, --clear-tags       Clear all tags from a task by name.");
+    println!();
+    println!("\t-l, --list              List all tasks or tasks filtered by tag.");
+    println!();
+    println!("\t-h, --help              Print this message.");
+    println!();
+    println!("Options:");
+    println!("\t-n, --name              Specify a new name when editing a task.");
+    println!();
+    println!("\t-p, --description       Specify a description when creating or");
+    println!("                          editing a task.");
+    println!();
+    println!("\t-t, --tag               Specify a number of single-word tags to");
+    println!("                          add to a task, or to filter tasks by.");
+    println!();
+    println!("\t-ut, --untag            Specify a number of single-word tags to");
+    println!("                          remove from a task when editing.");
+    println!();
+    println!("\t-n, --name              Specify a new name when editing a task.");
+    println!();
+    //Add create, destroy (stack), delete is indexed (if no index it is a pop), insert is indexed (if no index it is a push) as well, and per stack.
+    //Two states, staged and unstaged.
+    //By default staged is the first task only, to stage more you need to specify
+    //Randomly popping is from staged piles of each stack
+    //When listing, show the stacks and their staged tasks, if list --stack name print the whole
+    //info about stack. list --all prints everything.
+    //Clear stack of finished tasks
+    //Push pop arg are for the stacks
+    //Stage unstage
+    //Do I move away from -- actions? No more chaining arguments?
+    //. action name --option aasdw daw daw d --option
+    //naming: stack:task because of edit? or edit-task vs edit-stack? Same problem.  edit vs
+    //edit stack --task name --options
+    //Undo with a Reverse action stack (prevact.csv)
+    //Settings:
+    //Only one task possible in progress (settings)?
+    //To use tag filter, just use the tag as a stack name
+    //Review ownership
+    //How do I deal with current in progress? Keep name of heap and task. How do I find the current and how do I limit it to
+    //one? Metadata file with this.
+}
 fn get_db_path() -> PathBuf {
     match env::var("TASK_HEAP_DBPATH") {
         Ok(path) => PathBuf::from_str(&path).unwrap().join("./db.csv"),
@@ -30,7 +90,7 @@ fn get_db_path() -> PathBuf {
         }
     }
 }
-pub fn write_task_heap(heap: HashMap<[u8; 32], Task>) -> std::io::Result<()> {
+pub fn write_task_heap(heap: HeapMap) -> std::io::Result<()> {
     let db_path = get_db_path();
     let db_file: fs::File = fs::OpenOptions::new()
         .create(true)
@@ -46,13 +106,13 @@ pub fn write_task_heap(heap: HashMap<[u8; 32], Task>) -> std::io::Result<()> {
     }
     Ok(())
 }
-pub fn read_task_heap() -> Result<HashMap<[u8; 32], Task>, HeapError> {
+pub fn read_task_heap() -> Result<HeapMap, HeapError> {
     // Your code here
     let db_path = get_db_path();
     if db_path.exists() {
         let file: fs::File = fs::OpenOptions::new().read(true).open(db_path)?;
         let reader = BufReader::new(file);
-        let mut heap = HashMap::new();
+        let mut heap = HeapMap::new();
         for line in reader.lines() {
             let csv_line = match line {
                 Ok(line) => line,

@@ -2,6 +2,7 @@ use core::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
+use crate::utils::SEPARATOR;
 use crate::{HeapError, Weight, utils::DEFAULT_WEIGHT};
 
 enum TaskStatus {
@@ -9,6 +10,18 @@ enum TaskStatus {
     Staged,
     InProgress,
     Finished,
+}
+impl FromStr for TaskStatus {
+    type Err = HeapError;
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.trim() {
+            "0" => Ok(Unstaged),
+            "1" => Ok(Staged),
+            "2" => Ok(InProgress),
+            "3" => Ok(Finished),
+            _ => Err(HeapError::CorruptData(input.to_string())),
+        }
+    }
 }
 impl fmt::Display for TaskStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -128,19 +141,31 @@ impl Task {
 impl FromStr for Task {
     type Err = HeapError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parts = s.split(',');
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let mut parts = input.split(SEPARATOR).into_iter();
 
         // 1. Name: Strict (Must exist and not be empty)
-        let name = parts
+        let heap_task_name: String = parts
             .next()
             .map(|s| s.trim()) // Clean up whitespace
             .filter(|s| !s.is_empty())
-            .ok_or(HeapError::CorruptData(s.to_string()))?
-            .to_string();
-
+            .ok_or(HeapError::CorruptData(input.to_string()))?
+            .into();
+        let mut htn_iter = heap_task_name.split(".").into_iter();
+        let heap_name: String = htn_iter
+            .next()
+            .ok_or(HeapError::CorruptData(input.into()))?
+            .into();
+        let task_name: String = htn_iter
+            .next()
+            .ok_or(HeapError::CorruptData(input.into()))?
+            .into();
         // 2. Description: Permissive (Defaults to empty)
-        let description = parts.next().map(|s| s.trim()).unwrap_or("").to_string();
+        let description: String = parts
+            .next()
+            .map(|temp| temp.trim().into())
+            .unwrap_or("")
+            .into();
 
         // 3. Weight: Strict on Garbage, Permissive on Missing
         // If the field is there ("100") but bad ("100a"), we return Error.
@@ -149,22 +174,18 @@ impl FromStr for Task {
             Some(val) => val
                 .trim()
                 .parse()
-                .map_err(|_| HeapError::CorruptData(s.to_string()))?,
+                .map_err(|_| HeapError::CorruptData(input.to_string()))?,
             None => DEFAULT_WEIGHT,
         };
 
-        // 4. Tags: Collect remaining
-        let status = match parts.next().unwrap_or("0").parse().unwrap_or(0) {
-            0 => Unstaged,
-            1 => Staged,
-            2 => InProgress,
-            3 => Finished,
-            _ => {
-                return Err(HeapError::CorruptData(s.to_string()));
-            }
-        };
+        // 4. Status: Collect remaining
+        let status = parts
+            .next()
+            .unwrap_or("0")
+            .parse()
+            .map_err(|_| HeapError::CorruptData(input.to_string()))?;
 
-        Ok(Task::new(name, description, weight, status))
+        Ok(Task::new(task_name, heap_name, description, weight, status))
     }
 }
 impl Display for Task {
@@ -176,8 +197,14 @@ impl Display for Task {
         //let tags = tags.join(" ");
         write!(
             f,
-            "{},{},{},{}",
-            self.name, self.description, self.weight, self.status
+            "{}",
+            [
+                self.get_full_name(),
+                self.description.clone(),
+                self.weight.to_string(),
+                self.status.to_string()
+            ]
+            .join(SEPARATOR)
         )
     }
 }
