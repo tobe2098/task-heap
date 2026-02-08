@@ -1,5 +1,6 @@
 use crate::action::Action;
 use crate::error::HeapError;
+use crate::utils::Weight;
 use crate::utils::{self, NumOrStr, get_description, get_heap_and_task, get_name};
 const MK_HEAP_CMD: &str = "create";
 const RM_HEAP_CMD: &str = "destroy";
@@ -12,10 +13,12 @@ const FINISH_TASK_CMD: &str = "finish";
 const STAGE_TASK_CMD: &str = "stage";
 const UNSTAGE_TASK_CMD: &str = "unstage";
 const CURRENT_TASKS_CMD: &str = "current";
+const STAGED_TASK_CMD: &str = "selected";
 const COMPLETE_CURRENT_CMD: &str = "complete";
 const CLEAR_DONE_CMD: &str = "clear-done";
 const CLEAR_ALL_TASKS_CMD: &str = "clear-all";
 const LIST_CMD: &str = "list";
+const HEAPS_CMD: &str = "heaps";
 const HELP_CMD: &str = "help";
 const NAME_OPT: &str = "--name";
 const NAME_OPT2: &str = "-n";
@@ -26,11 +29,11 @@ const WEIGHT_OPT2: &str = "-w";
 const TAG_OPT: &str = "--tag";
 const UNTAG_OPT: &str = "--untag";
 const ALL_OPT: &str = "-a";
-pub enum Commands {
+pub enum Command {
     CreateHeap(String),
     DestroyHeap(String),
     PushTask((String, String)),          //Push task onto stack.
-    PopTask(Option<String>),             //Pop task from staged tasks.
+    PopTask(Vec<String>),                //Pop task from staged tasks.
     InsertTask((String, String, usize)), //Indexed or by name.
     RemoveTask((String, NumOrStr)),      //||
     Edit((String, Option<NumOrStr>)),    //Both stack or task and the stack is the argument.
@@ -38,45 +41,42 @@ pub enum Commands {
     StageTask((String, NumOrStr)),   //Arg is stack always
     UnstageTask((String, NumOrStr)), //Stage or unstage
     CurrentTasks,
+    StagedTasks,
     CompleteCurrent,
     ClearDone(String),     //Arg is stack
     ClearAllTasks(String), //Arg is stack
     List(Option<String>),  //Either a specific stack, or stacks only
+    Heaps,
     Help,
 }
 pub enum Options {
     Name(String),
     Description(String),
-    Weight(String),
+    Weight(Weight),
     Tags(Vec<String>),
     Untag(Vec<String>),
     All,
 }
 impl Options {
-    pub fn is_valid_for(&self, command: &Commands) -> bool {
+    pub fn is_valid_for(&self, command: &Command) -> bool {
         match (command, self) {
             // Push accepts everything except Untag
-            (Commands::CreateHeap(_), Self::Description(_) | Self::Weight(_) | Self::Tags(_)) => {
+            (Command::CreateHeap(_), Self::Description(_) | Self::Weight(_) | Self::Tags(_)) => {
                 true
             }
-            (Commands::DestroyHeap(_), Self::Tags(_)) => true,
-            (
-                Commands::PushTask(_),
-                Self::Name(_) | Self::Description(_) | Self::Weight(_) | Self::Tags(_),
-            ) => true,
+            //Nmae in args
+            (Command::PushTask(_), Self::Description(_) | Self::Weight(_)) => true,
 
             // Pop/Delete ONLY accept filtering tags
             //Pop takes the tag as an optional arg
-            (
-                Commands::InsertTask(_),
-                Self::Name(_) | Self::Description(_) | Self::Weight(_) | Self::Tags(_),
-            ) => true,
-
-            (Commands::RemoveTask(_), Self::Name(_)) => true,
+            //Remove should take heapname.taskname
+            (Command::InsertTask(_), Self::Description(_) | Self::Weight(_) | Self::Tags(_)) => {
+                true
+            }
 
             // Edit accepts specific fields
             (
-                Commands::Edit(_),
+                Command::Edit(_),
                 Self::Name(_)
                 | Self::Description(_)
                 | Self::Weight(_)
@@ -85,8 +85,7 @@ impl Options {
             ) => true,
 
             //List accepts tag and weight (for now equal, but <> in future)
-            (Commands::List(_), Self::Tags(_)) => true,
-
+            //Tag makes no sense anymore
             // Default to false for everything else
             _ => false,
         }
@@ -105,7 +104,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     MK_HEAP_CMD.to_owned(),
                 )));
             };
-            Commands::CreateHeap(heap_name)
+            Command::CreateHeap(heap_name)
         }
         RM_HEAP_CMD => {
             let Some(heap_name) = utils::get_heap_name(&mut args_iterator)? else {
@@ -114,7 +113,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     RM_HEAP_CMD.to_owned(),
                 )));
             };
-            Commands::DestroyHeap(heap_name)
+            Command::DestroyHeap(heap_name)
         }
         PUSH_TASK_CMD => {
             let option_pair = get_heap_and_task(&mut args_iterator)?;
@@ -130,9 +129,19 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     PUSH_TASK_CMD.to_owned(),
                 )));
             };
-            Commands::PushTask((heap_name, task_name))
+            Command::PushTask((heap_name, task_name))
         }
-        POP_TASK_CMD => Commands::PopTask(utils::get_heap_name(&mut args_iterator)?),
+        POP_TASK_CMD => {
+            let tag_list = match utils::get_heap_name(&mut args_iterator)? {
+                Some(tag_str) => tag_str
+                    .split(",")
+                    .map(|s| s.trim().to_owned())
+                    .filter(|s| !s.is_empty() || !s.contains(" "))
+                    .collect(),
+                None => Vec::new(),
+            };
+            Command::PopTask(tag_list)
+        }
         INSERT_TASK_CMD => {
             let option_pair = get_heap_and_task(&mut args_iterator)?;
             let Some(heap_name) = option_pair.0 else {
@@ -156,7 +165,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     INSERT_TASK_CMD.to_owned(),
                 )));
             };
-            Commands::InsertTask((heap_name, task_name, task_index))
+            Command::InsertTask((heap_name, task_name, task_index))
         }
         REMOVE_TASK_CMD => {
             let option_pair = get_heap_and_task(&mut args_iterator)?;
@@ -178,7 +187,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     )));
                 }
             };
-            Commands::RemoveTask((heap_name, task_index_or_name))
+            Command::RemoveTask((heap_name, task_index_or_name))
         }
         EDIT_CMD => {
             let option_pair = get_heap_and_task(&mut args_iterator)?;
@@ -195,7 +204,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                 },
                 None => None,
             };
-            Commands::Edit((heap_name, task_index_or_name))
+            Command::Edit((heap_name, task_index_or_name))
         }
         FINISH_TASK_CMD => {
             let option_pair = get_heap_and_task(&mut args_iterator)?;
@@ -217,7 +226,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     )));
                 }
             };
-            Commands::FinishTask((heap_name, task_index_or_name))
+            Command::FinishTask((heap_name, task_index_or_name))
         }
         STAGE_TASK_CMD => {
             let option_pair = get_heap_and_task(&mut args_iterator)?;
@@ -239,7 +248,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     )));
                 }
             };
-            Commands::StageTask((heap_name, task_index_or_name))
+            Command::StageTask((heap_name, task_index_or_name))
         }
         UNSTAGE_TASK_CMD => {
             let option_pair = get_heap_and_task(&mut args_iterator)?;
@@ -261,10 +270,11 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     )));
                 }
             };
-            Commands::UnstageTask((heap_name, task_index_or_name))
+            Command::UnstageTask((heap_name, task_index_or_name))
         }
-        CURRENT_TASKS_CMD => Commands::CurrentTasks,
-        COMPLETE_CURRENT_CMD => Commands::CompleteCurrent,
+        STAGED_TASK_CMD => Command::StagedTasks,
+        CURRENT_TASKS_CMD => Command::CurrentTasks,
+        COMPLETE_CURRENT_CMD => Command::CompleteCurrent,
         CLEAR_DONE_CMD => {
             let Some(heap_name) = utils::get_heap_name(&mut args_iterator)? else {
                 return Err(HeapError::MissingOption((
@@ -272,7 +282,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     CLEAR_DONE_CMD.to_owned(),
                 )));
             };
-            Commands::ClearDone(heap_name)
+            Command::ClearDone(heap_name)
         }
         CLEAR_ALL_TASKS_CMD => {
             let Some(heap_name) = utils::get_heap_name(&mut args_iterator)? else {
@@ -281,13 +291,14 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                     CLEAR_ALL_TASKS_CMD.to_owned(),
                 )));
             };
-            Commands::ClearAllTasks(heap_name)
+            Command::ClearAllTasks(heap_name)
         }
         LIST_CMD => {
-            let heap_name = utils::get_heap_name(&mut args_iterator)?;
-            Commands::List(heap_name)
+            let heap_name: Option<String> = utils::get_heap_name(&mut args_iterator)?;
+            Command::List(heap_name)
         }
-        HELP_CMD => Commands::Help,
+        HEAPS_CMD => Command::Heaps,
+        HELP_CMD => Command::Help,
         unknown_cmd => {
             return Err(HeapError::UnknownCommand(unknown_cmd.to_owned()));
         }
@@ -355,7 +366,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                         WEIGHT_OPT.to_owned(),
                     )));
                 };
-                Options::Weight(contents)
+                Options::Weight(contents.parse()?)
             }
             unknown_opt => {
                 println!("{unknown_opt} ignored, it is not an argument or option.");
