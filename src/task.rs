@@ -145,27 +145,16 @@ impl FromStr for Task {
         let mut parts = input.split(SEPARATOR).into_iter();
 
         // 1. Name: Strict (Must exist and not be empty)
-        let heap_task_name: String = parts
+        let heap_task_raw = parts
             .next()
             .map(|s| s.trim()) // Clean up whitespace
             .filter(|s| !s.is_empty())
-            .ok_or(HeapError::CorruptData(input.to_string()))?
-            .into();
-        let mut htn_iter = heap_task_name.split(".").into_iter();
-        let heap_name: String = htn_iter
-            .next()
-            .ok_or(HeapError::CorruptData(input.into()))?
-            .into();
-        let task_name: String = htn_iter
-            .next()
-            .ok_or(HeapError::CorruptData(input.into()))?
-            .into();
+            .ok_or_else(|| HeapError::CorruptData(input.to_string()))?;
+        let (heap_name, task_name) = heap_task_raw
+            .split_once(".")
+            .ok_or_else(|| HeapError::CorruptData(input.into()))?;
         // 2. Description: Permissive (Defaults to empty)
-        let description: String = parts
-            .next()
-            .map(|temp| temp.trim().into())
-            .unwrap_or("")
-            .into();
+        let description = parts.next().map(|temp| temp.trim()).unwrap_or("");
 
         // 3. Weight: Strict on Garbage, Permissive on Missing
         // If the field is there ("100") but bad ("100a"), we return Error.
