@@ -1,7 +1,6 @@
 use crate::action::Action;
 use crate::error::HeapError;
-use crate::utils::Weight;
-use crate::utils::{self, NumOrStr, get_description, get_heap_and_task, get_name};
+use crate::utils::{self, NumOrStr, Weight, get_description, get_heap_and_task, get_name};
 const MK_HEAP_CMD: &str = "create";
 const RM_HEAP_CMD: &str = "destroy";
 const PUSH_TASK_CMD: &str = "push";
