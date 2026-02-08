@@ -1,8 +1,9 @@
-use crate::{error::HeapError, stack::TaskStack};
+use crate::{error::HeapError, heap::TaskHeap};
 use std::{collections::HashMap, iter::Peekable, iter::Skip, vec::IntoIter};
 
 pub type ArgsIter = Peekable<Skip<IntoIter<String>>>;
-pub type TaskHeap = HashMap<String, TaskStack>;
+pub type PeekIntoIter<T> = Peekable<IntoIter<T>>;
+pub type HeapMap = HashMap<String, TaskHeap>;
 pub type Weight = u32;
 pub const DEFAULT_WEIGHT: Weight = 100;
 pub const SEPARATOR: &str = "||";
@@ -11,9 +12,9 @@ pub enum NumOrStr {
     Num(usize),
     Str(String),
 }
-pub fn extract_array_by_tag<'a, F, R>(map: &'a TaskHeap, tags: &[String], closure: F) -> Vec<R>
+pub fn extract_array_by_tag<'a, F, R>(map: &'a HeapMap, tags: &[String], closure: F) -> Vec<R>
 where
-    F: FnMut((&'a String, &'a TaskStack)) -> R,
+    F: FnMut((&'a String, &'a TaskHeap)) -> R,
 {
     map.iter()
         .filter(|tuple| tuple.1.has_tags(tags))
