@@ -22,31 +22,61 @@ impl fmt::Display for TaskStatus {
 }
 use TaskStatus::*;
 
+pub struct TaskBuilder {
+    name: String,
+    heap_name: String,
+    description: Option<String>,
+    weight: Option<Weight>,
+}
+impl TaskBuilder {
+    pub fn new(name: impl Into<String>, heap_name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            heap_name: heap_name.into(),
+            description: None,
+            weight: None,
+        }
+    }
+    pub fn description(&mut self, description: impl Into<String>) -> &mut Self {
+        self.description = Some(description.into());
+        self
+    }
+    pub fn weight(&mut self, weight: Weight) -> &mut Self {
+        self.weight = Some(weight);
+        self
+    }
+}
 pub struct Task {
-    pub name: String,
-    pub description: String,
-    pub weight: Weight,
-    pub status: TaskStatus,
+    name: String,
+    description: String,
+    heap_name: String,
+    weight: Weight,
+    status: TaskStatus,
 }
 impl Task {
     fn new(
         name: impl Into<String>,
+        heap_name: impl Into<String>,
         description: impl Into<String>,
         weight: Weight,
         status: TaskStatus,
     ) -> Self {
         Self {
             name: name.into(),
+            heap_name: heap_name.into(),
             description: description.into(),
             weight,
             status,
         }
     }
-    pub fn from_name(name: impl Into<String>) -> Self {
-        Task::new(name, "...", DEFAULT_WEIGHT, Unstaged)
-    }
     pub fn get_name(&self) -> &str {
         &self.name
+    }
+    pub fn get_heap_name(&self) -> &str {
+        &self.heap_name
+    }
+    pub fn get_full_name(&self) -> String {
+        format!("{}.{}", self.heap_name, self.name)
     }
     pub fn get_description(&self) -> &str {
         &self.description
@@ -59,11 +89,8 @@ impl Task {
         self.description = desc.into();
         self
     }
-    pub fn set_weight(&mut self, weight_str: impl AsRef<str>) -> &mut Self {
-        self.weight = weight_str.as_ref().parse().unwrap_or_else(|err| {
-            println!("Could not parse: {err}\nSetting weight to default value:{DEFAULT_WEIGHT}");
-            DEFAULT_WEIGHT
-        });
+    pub fn set_weight(&mut self, weight: Weight) -> &mut Self {
+        self.weight = weight;
         self
     }
     pub fn get_weight(&self) -> Weight {
@@ -151,6 +178,19 @@ impl Display for Task {
             f,
             "{},{},{},{}",
             self.name, self.description, self.weight, self.status
+        )
+    }
+}
+impl From<TaskBuilder> for Task {
+    fn from(builder: TaskBuilder) -> Self {
+        Task::new(
+            builder.name,
+            builder
+                .description
+                .unwrap_or("Empty description.".to_owned()),
+            builder.heap_name,
+            builder.weight.unwrap_or(DEFAULT_WEIGHT),
+            Unstaged,
         )
     }
 }
