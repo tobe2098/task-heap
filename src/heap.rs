@@ -1,13 +1,12 @@
 use crate::error::HeapError;
-use crate::task::Task;
+use crate::task::{Task, TaskStatus};
 use crate::utils::{self, DEFAULT_WEIGHT, NumOrStr, Weight};
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::str::FromStr;
 
 pub struct HeapBuilder {
     name: String,
-    description: Option<String>,
     weight: Option<Weight>,
     tags: HashSet<String>,
 }
@@ -15,14 +14,9 @@ impl HeapBuilder {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            description: None,
             weight: None,
             tags: HashSet::new(),
         }
-    }
-    pub fn description(&mut self, description: impl Into<String>) -> &mut Self {
-        self.description = Some(description.into());
-        self
     }
     pub fn weight(&mut self, weight: Weight) -> &mut Self {
         self.weight = Some(weight);
@@ -36,22 +30,15 @@ impl HeapBuilder {
 
 pub struct TaskHeap {
     name: String,
-    description: String,
     weight: Weight,
     tags: HashSet<String>,
     tasks: VecDeque<Task>,
 }
 
 impl TaskHeap {
-    pub fn new(
-        name: impl Into<String>,
-        description: impl Into<String>,
-        weight: Weight,
-        tags: HashSet<String>,
-    ) -> Self {
+    pub fn new(name: impl Into<String>, weight: Weight, tags: HashSet<String>) -> Self {
         Self {
             name: name.into(),
-            description: description.into(),
             weight,
             tags,
             tasks: VecDeque::new(),
@@ -86,34 +73,48 @@ impl TaskHeap {
                 .find(|pair| pair.1.get_name() == name),
         }
     }
-    pub fn get_first_unfinished_task(&mut self) -> Option<&mut Task> {
-        for task in &mut self.tasks {
-            if !task.is_finished() {
-                return Some(task);
+    pub fn get_first_unfinished_task(&self) -> Option<usize> {
+        for task in self.tasks.iter().enumerate() {
+            if !task.1.is_finished() {
+                return Some(task.0);
             }
         }
         None
     }
-    pub fn get_staged(&mut self) -> (Vec<Weight>, Vec<&mut Task>) {
+    pub fn get_staged(&self) -> (Vec<Weight>, Vec<usize>) {
         self.tasks
-            .iter_mut()
+            .iter()
+            .enumerate()
             .filter_map(|task| {
-                if task.is_staged() {
-                    return Some((task.get_weight(), task));
+                if task.1.is_staged() {
+                    return Some((task.1.get_weight(), task.0));
                 } else {
                     None
                 }
             })
             .collect()
     }
-    pub fn get_staged_tasks(&mut self) -> Vec<&Task> {
+    pub fn get_all_tasks(&self) -> Vec<&Task> {
+        self.tasks.iter().collect()
+    }
+    pub fn get_staged_tasks(&self) -> Vec<&Task> {
         self.tasks.iter().filter(|task| task.is_staged()).collect()
     }
-    pub fn get_current_tasks(&mut self) -> Vec<&Task> {
+    pub fn get_current_tasks(&self) -> Vec<&Task> {
         self.tasks
             .iter()
             .filter(|task| task.is_in_progress())
             .collect()
+    }
+    pub fn get_states_sum(&self) -> HashMap<TaskStatus, u32> {
+        let mut hashmap = HashMap::new();
+        for task in &self.tasks {
+            *hashmap
+                .entry(task.get_state())
+                .and_modify(|counter| *counter += 1)
+                .or_insert(1);
+        }
+        hashmap
     }
     pub fn set_done(&mut self, name_or_idx: &NumOrStr) -> Result<(), HeapError> {
         self.get_task_mut(name_or_idx)
@@ -150,13 +151,6 @@ impl TaskHeap {
     }
     pub fn set_name(&mut self, name: impl Into<String>) -> &mut Self {
         self.name = name.into();
-        self
-    }
-    pub fn get_description(&self) -> &str {
-        &self.description
-    }
-    pub fn set_description(&mut self, description: impl Into<String>) -> &mut Self {
-        self.description = description.into();
         self
     }
     pub fn get_weight(&self) -> Weight {
@@ -196,13 +190,7 @@ impl fmt::Display for TaskHeap {
         write!(
             f,
             "{}\n{}",
-            [
-                self.name.clone(),
-                self.description.clone(),
-                self.weight.to_string(),
-                tags_str
-            ]
-            .join(utils::SEPARATOR),
+            [self.name.clone(), self.weight.to_string(), tags_str].join(utils::SEPARATOR),
             tasks_str
         )
     }
@@ -218,10 +206,6 @@ impl FromStr for TaskHeap {
             .ok_or_else(|| HeapError::CorruptData(input.to_owned()))?;
         let mut header_iter = header.split(utils::SEPARATOR).into_iter();
         let name = header_iter
-            .next()
-            .ok_or_else(|| HeapError::CorruptData(input.to_owned()))?
-            .trim();
-        let description = header_iter
             .next()
             .ok_or_else(|| HeapError::CorruptData(input.to_owned()))?
             .trim();
@@ -241,7 +225,7 @@ impl FromStr for TaskHeap {
             .map(|tag| tag.trim().to_owned())
             .collect::<HashSet<String>>();
 
-        let mut heap = TaskHeap::new(name, description, weight, tags);
+        let mut heap = TaskHeap::new(name, weight, tags);
         for task in lines.filter(|l| !l.trim().is_empty()).map(|l| l.parse()) {
             heap.push(task?);
         }
@@ -252,9 +236,6 @@ impl From<HeapBuilder> for TaskHeap {
     fn from(builder: HeapBuilder) -> Self {
         TaskHeap {
             name: builder.name,
-            description: builder
-                .description
-                .unwrap_or("Empty description".to_owned()),
             weight: builder.weight.unwrap_or(DEFAULT_WEIGHT),
             tags: builder.tags,
             tasks: VecDeque::new(),
