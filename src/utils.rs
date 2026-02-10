@@ -1,16 +1,56 @@
-use crate::{error::HeapError, heap::TaskHeap};
+use crate::{error::HeapError, heap::TaskHeap, task::Task};
 use std::{collections::HashMap, iter::Peekable, iter::Skip, vec::IntoIter};
 
 pub type ArgsIter = Peekable<Skip<IntoIter<String>>>;
 pub type PeekIntoIter<T> = Peekable<IntoIter<T>>;
 pub type HeapMap = HashMap<String, TaskHeap>;
+pub type TaskID = (String, String);
 pub type Weight = u32;
 pub const DEFAULT_WEIGHT: Weight = 100;
 pub const SEPARATOR: &str = "||";
 
-pub enum NumOrStr {
+pub enum NumOrStr<'a> {
     Num(usize),
-    Str(String),
+    Str(&'a str),
+    String(String),
+}
+pub fn get_heap_from_arg<'a>(
+    heap_name: &str,
+    heapmap: &'a mut HeapMap,
+) -> Result<&'a mut TaskHeap, HeapError> {
+    let Some(heap) = heapmap.get_mut(heap_name) else {
+        return Err(HeapError::HeapNotFound(heap_name.to_owned()));
+    };
+    Ok(heap)
+}
+pub fn get_task_from_arg<'a>(
+    heap: &'a mut TaskHeap,
+    task_idx_name: NumOrStr,
+) -> Result<(usize, &'a mut Task), HeapError> {
+    let Some(task) = heap.get_task_mut(&task_idx_name) else {
+        return Err(HeapError::TaskNotFound(match task_idx_name {
+            NumOrStr::Num(idx) => format!("in index {idx}"),
+            NumOrStr::Str(name) => name.into(),
+            NumOrStr::String(name) => name,
+        }));
+    };
+    Ok(task)
+}
+pub fn get_task_from_id<'a>(
+    heapmap: &'a mut HeapMap,
+    task_id: &TaskID,
+) -> Result<&'a mut Task, HeapError> {
+    let heap = get_heap_from_arg(&task_id.0, heapmap)?;
+    get_task_from_arg(heap, NumOrStr::Str(&task_id.1)).map(|t| t.1)
+}
+pub fn check_task_id(heapmap: &HeapMap, task_id: &TaskID) -> Result<(), HeapError> {
+    let heap = heapmap
+        .get(&task_id.0)
+        .ok_or_else(|| HeapError::HeapNotFound(task_id.0.clone()))?;
+    let _ = heap
+        .get_task(&NumOrStr::Str(&task_id.1))
+        .ok_or_else(|| HeapError::TaskNotFound(task_id.1.clone()))?;
+    Ok(())
 }
 pub fn extract_array_by_tag<'a, F, R>(map: &'a HeapMap, tags: &[String], closure: F) -> Vec<R>
 where
