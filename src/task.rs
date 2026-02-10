@@ -5,8 +5,9 @@ use std::str::FromStr;
 use crate::utils::SEPARATOR;
 use crate::{HeapError, Weight, utils::DEFAULT_WEIGHT};
 
-enum TaskStatus {
-    Unstaged,
+#[derive(Clone, Hash, Eq, PartialEq)]
+pub enum TaskStatus {
+    Idle,
     Staged,
     InProgress,
     Finished,
@@ -15,7 +16,7 @@ impl FromStr for TaskStatus {
     type Err = HeapError;
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.trim() {
-            "0" => Ok(Unstaged),
+            "0" => Ok(Idle),
             "1" => Ok(Staged),
             "2" => Ok(InProgress),
             "3" => Ok(Finished),
@@ -26,7 +27,7 @@ impl FromStr for TaskStatus {
 impl fmt::Display for TaskStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Unstaged => write!(f, "0"),
+            Idle => write!(f, "0"),
             Staged => write!(f, "1"),
             InProgress => write!(f, "2"),
             Finished => write!(f, "3"),
@@ -119,7 +120,10 @@ impl Task {
         matches!(self.status, Staged)
     }
     pub fn is_unstaged(&self) -> bool {
-        matches!(self.status, Unstaged)
+        matches!(self.status, Idle)
+    }
+    pub fn get_state(&self) -> TaskStatus {
+        self.status.clone()
     }
     pub fn finish(&mut self) -> &mut Self {
         self.status = Finished;
@@ -134,7 +138,7 @@ impl Task {
         self
     }
     pub fn unstage(&mut self) -> &mut Self {
-        self.status = Unstaged;
+        self.status = Idle;
         self
     }
 }
@@ -206,7 +210,7 @@ impl From<TaskBuilder> for Task {
                 .unwrap_or("Empty description.".to_owned()),
             builder.heap_name,
             builder.weight.unwrap_or(DEFAULT_WEIGHT),
-            Unstaged,
+            Idle,
         )
     }
 }
