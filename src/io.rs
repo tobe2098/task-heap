@@ -1,5 +1,9 @@
-use crate::utils::HeapMap;
-use crate::{HeapError, Task};
+use crate::{
+    HeapError, HeapMap,
+    heap::TaskHeap,
+    task::{Task, TaskStatus},
+    utils::{TaskID, check_task_id},
+};
 use directories::ProjectDirs;
 use std::{
     env, fs,
