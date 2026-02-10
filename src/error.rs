@@ -14,6 +14,7 @@ pub enum HeapError {
     ArgumentCannotHaveSeparator,
     MissingArgument,
     InvalidHeapName,
+    InvalidWeights,
     InvalidHeapTaskPair(String),
     DoesNotTakeArg(String),
     TagCannotBeEmpty,
@@ -24,6 +25,7 @@ pub enum HeapError {
     SomeHeapsAreFinished,
     NoTasksFound,
     IndexError,
+    UserSaidNo,
     HeapNotFound(String),
     HeapAlreadyExists(String),
     ATaskIsAlreadyInProgress(String),
@@ -41,6 +43,7 @@ impl fmt::Display for HeapError {
             //HeapError::CorruptKey(e) => write!(f, "Parsing Error: {}", e),
             FileDoesNotExist => write!(f, "File does not exist"),
             MissingCommand => write!(f, "No command was used"),
+            UserSaidNo => write!(f, "You backed down."),
             UnknownCommand(str) => write!(f, "Unknown command: {str}"),
             MissingOption((arg, cmd)) => write!(f, "A {arg} is required for `{cmd}`."),
             DoesNotTakeArg(str) => write!(f, "`{str}` does not take options."),
@@ -48,6 +51,10 @@ impl fmt::Display for HeapError {
             InvalidHeapName => write!(
                 f,
                 "A heap must only contain alphanumeric and -_ characters."
+            ),
+            InvalidWeights => write!(
+                f,
+                "The sum of weights in heaps or staged tasks cannot be zero"
             ),
             ArgumentCannotHaveSeparator => {
                 write!(
