@@ -9,6 +9,7 @@ const INSERT_TASK_CMD: &str = "insert";
 const REMOVE_TASK_CMD: &str = "remove";
 const EDIT_CMD: &str = "edit";
 const FINISH_TASK_CMD: &str = "finish";
+const START_TASK_CMD: &str = "start";
 const STAGE_TASK_CMD: &str = "stage";
 const UNSTAGE_TASK_CMD: &str = "unstage";
 const CURRENT_TASKS_CMD: &str = "current";
@@ -17,6 +18,7 @@ const COMPLETE_CURRENT_CMD: &str = "complete";
 const CLEAR_DONE_CMD: &str = "clear-done";
 const CLEAR_ALL_TASKS_CMD: &str = "clear-all";
 const LIST_CMD: &str = "list";
+const FLATLIST_CMD: &str = "flatlist";
 const HEAPS_CMD: &str = "heaps";
 const HELP_CMD: &str = "help";
 const NAME_OPT: &str = "--name";
@@ -27,7 +29,8 @@ const WEIGHT_OPT: &str = "--weight";
 const WEIGHT_OPT2: &str = "-w";
 const TAG_OPT: &str = "--tag";
 const UNTAG_OPT: &str = "--untag";
-const ALL_OPT: &str = "-a";
+const STAGED_OPT1: &str = "--staged";
+const STAGED_OPT2: &str = "-s";
 pub enum Command {
     CreateHeap(String),
     DestroyHeap(String),
@@ -39,12 +42,14 @@ pub enum Command {
     FinishTask((String, NumOrStr)),
     StageTask((String, NumOrStr)),   //Arg is stack always
     UnstageTask((String, NumOrStr)), //Stage or unstage
+    StartTask((String, NumOrStr)),   //Stage or unstage
     CurrentTasks,
     StagedTasks,
     CompleteCurrent,
     ClearDone(String),     //Arg is stack
     ClearAllTasks(String), //Arg is stack
     List(Option<String>),  //Either a specific stack, or stacks only
+    FlatList,
     Heaps,
     Help,
 }
@@ -54,15 +59,13 @@ pub enum Options {
     Weight(Weight),
     Tags(Vec<String>),
     Untag(Vec<String>),
-    All,
+    Staged,
 }
 impl Options {
     pub fn is_valid_for(&self, command: &Command) -> bool {
         match (command, self) {
             // Push accepts everything except Untag
-            (Command::CreateHeap(_), Self::Description(_) | Self::Weight(_) | Self::Tags(_)) => {
-                true
-            }
+            (Command::CreateHeap(_), Self::Weight(_) | Self::Tags(_)) => true,
             //Nmae in args
             (Command::PushTask(_), Self::Description(_) | Self::Weight(_)) => true,
 
@@ -84,7 +87,8 @@ impl Options {
             ) => true,
 
             //List accepts tag and weight (for now equal, but <> in future)
-            //Tag makes no sense anymore
+            (Command::List(_), Self::Tags(_) | Self::Staged) => true,
+            (Command::FlatList, Self::Tags(_) | Self::Staged) => true,
             // Default to false for everything else
             _ => false,
         }
@@ -227,6 +231,28 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
             };
             Command::FinishTask((heap_name, task_index_or_name))
         }
+        START_TASK_CMD => {
+            let option_pair = get_heap_and_task(&mut args_iterator)?;
+            let Some(heap_name) = option_pair.0 else {
+                return Err(HeapError::MissingOption((
+                    "heap name".to_owned(),
+                    START_TASK_CMD.to_owned(),
+                )));
+            };
+            let task_index_or_name = match option_pair.1 {
+                Some(task_index) => match task_index.parse::<usize>() {
+                    Ok(index) => NumOrStr::Num(index),
+                    Err(_) => NumOrStr::Str(task_index),
+                },
+                None => {
+                    return Err(HeapError::MissingOption((
+                        "valid heap index or task name".to_owned(),
+                        START_TASK_CMD.to_owned(),
+                    )));
+                }
+            };
+            Command::StartTask((heap_name, task_index_or_name))
+        }
         STAGE_TASK_CMD => {
             let option_pair = get_heap_and_task(&mut args_iterator)?;
             let Some(heap_name) = option_pair.0 else {
@@ -260,7 +286,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
             let task_index_or_name = match option_pair.1 {
                 Some(task_index) => match task_index.parse::<usize>() {
                     Ok(index) => NumOrStr::Num(index),
-                    Err(_) => NumOrStr::Str(task_index),
+                    Err(_) => NumOrStr::Str(&task_index),
                 },
                 None => {
                     return Err(HeapError::MissingOption((
@@ -296,6 +322,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
             let heap_name: Option<String> = utils::get_heap_name(&mut args_iterator)?;
             Command::List(heap_name)
         }
+        FLATLIST_CMD => Command::FlatList,
         HEAPS_CMD => Command::Heaps,
         HELP_CMD => Command::Help,
         unknown_cmd => {
@@ -367,6 +394,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
                 };
                 Options::Weight(contents.parse()?)
             }
+            STAGED_OPT1 | STAGED_OPT2 => Options::Staged,
             unknown_opt => {
                 println!("{unknown_opt} ignored, it is not an argument or option.");
                 continue;
