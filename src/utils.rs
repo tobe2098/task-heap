@@ -25,13 +25,13 @@ pub fn get_heap_from_arg<'a>(
 }
 pub fn get_task_from_arg<'a>(
     heap: &'a mut TaskHeap,
-    task_idx_name: NumOrStr,
+    task_idx_name: &NumOrStr,
 ) -> Result<(usize, &'a mut Task), HeapError> {
-    let Some(task) = heap.get_task_mut(&task_idx_name) else {
+    let Some(task) = heap.get_task_mut(task_idx_name) else {
         return Err(HeapError::TaskNotFound(match task_idx_name {
-            NumOrStr::Num(idx) => format!("in index {idx}"),
-            NumOrStr::Str(name) => name.into(),
-            NumOrStr::String(name) => name,
+            &NumOrStr::Num(idx) => format!("in index {idx}"),
+            &NumOrStr::Str(name) => name.into(),
+            NumOrStr::String(name) => name.into(),
         }));
     };
     Ok(task)
@@ -41,7 +41,7 @@ pub fn get_task_from_id<'a>(
     task_id: &TaskID,
 ) -> Result<&'a mut Task, HeapError> {
     let heap = get_heap_from_arg(&task_id.0, heapmap)?;
-    get_task_from_arg(heap, NumOrStr::Str(&task_id.1)).map(|t| t.1)
+    get_task_from_arg(heap, &NumOrStr::Str(&task_id.1)).map(|t| t.1)
 }
 pub fn check_task_id(heapmap: &HeapMap, task_id: &TaskID) -> Result<(), HeapError> {
     let heap = heapmap
