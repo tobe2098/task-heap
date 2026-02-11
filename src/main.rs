@@ -1,9 +1,4 @@
 //TODO: Single message for each command via help
-//Change storage to use a different separator/filter for non-separator chars.
-//Wrap errors in another error type to be able to get "push": "Missing argument"
-//Maybe move? within edit?
-//Uses for -a flag
-//For now, rigid args (req)
 mod commands;
 mod error;
 use error::HeapError;
@@ -18,7 +13,7 @@ mod action;
 mod heap;
 mod utils;
 
-use std::env;
+use std::{env, io::Write};
 
 fn main() -> Result<(), HeapError> {
     let args: Vec<String> = env::args().collect();
@@ -27,9 +22,9 @@ fn main() -> Result<(), HeapError> {
     let action = parse_command(args_iterator)?;
     let mut heapmap = read_task_heap()?;
     let mut active_task = read_meta_file(&heapmap)?;
-    run_action(action, &mut heapmap, &mut active_task)?;
-
+    let result_messages = run_action(action, &mut heapmap, &mut active_task)?;
     write_meta_file(active_task)?;
     write_task_heap(heapmap)?;
+    std::io::stdout().write_all(&result_messages)?;
     Ok(())
 }

@@ -19,6 +19,7 @@ pub enum HeapError {
     NoHeapsFound,
     SomeHeapsAreFinished,
     IndexError,
+    FormattingError(fmt::Error),
     UserSaidNo,
     HeapNotFound(String),
     HeapAlreadyExists(String),
@@ -31,6 +32,7 @@ impl fmt::Display for HeapError {
         match self {
             FileError(e) => write!(f, "File Input Error: {}", e),
             WeightParseError(e) => write!(f, "Weight parsing error: {}", e),
+            FormattingError(e) => write!(f, "Formatting error: {}", e),
             CorruptData(str) => {
                 write!(f, "Data row is corrupt: {str}")
             }
@@ -82,5 +84,10 @@ impl From<std::io::Error> for HeapError {
 impl From<std::num::ParseIntError> for HeapError {
     fn from(err: std::num::ParseIntError) -> HeapError {
         HeapError::WeightParseError(err)
+    }
+}
+impl From<std::fmt::Error> for HeapError {
+    fn from(err: std::fmt::Error) -> HeapError {
+        HeapError::FormattingError(err)
     }
 }
