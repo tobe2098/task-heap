@@ -391,7 +391,11 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
 //    //rintln!("{}", "-".repeat(term_width));
 //}
 
-pub fn print_tasks_standalone(tasks: Vec<&Task>, staged_only: bool) {
+pub fn print_tasks_standalone<W: Write>(
+    tasks: Vec<&Task>,
+    staged_only: bool,
+    str: &mut W,
+) -> Result<(), HeapError> {
     let term_width = if let Some((Width(w), _)) = terminal_size() {
         w as usize
     } else {
@@ -409,7 +413,8 @@ pub fn print_tasks_standalone(tasks: Vec<&Task>, staged_only: bool) {
     let w_name = w_name.max(5);
     let w_description = w_description.max(10);
     //println!("{}", "-".repeat(term_width));
-    println!(
+    writeln!(
+        str,
         "{:<n$} | {:<d$} | {:>w$} | {:<t$}",
         "HEAP.TASK",
         "DESCRIPTION",
@@ -419,7 +424,7 @@ pub fn print_tasks_standalone(tasks: Vec<&Task>, staged_only: bool) {
         d = w_description,
         w = W_WEIGHT,
         t = W_STATE
-    );
+    )?;
     for task in tasks {
         let state = match task.get_state() {
             TaskStatus::Idle => {
@@ -457,7 +462,8 @@ pub fn print_tasks_standalone(tasks: Vec<&Task>, staged_only: bool) {
                 "".to_owned()
             };
 
-            println!(
+            writeln!(
+                str,
                 "{:<n$} | {:<d$} | {:>w$} | {:<t$}",
                 name_part,
                 desc_part,
@@ -467,10 +473,11 @@ pub fn print_tasks_standalone(tasks: Vec<&Task>, staged_only: bool) {
                 d = w_description,
                 w = W_WEIGHT,
                 t = W_STATE
-            );
+            )?;
         }
         //println!("{}", "-".repeat(term_width));
     }
+    Ok(())
 }
 
 pub fn print_single_heap(heap: &TaskHeap, staged_only: bool) {
@@ -478,7 +485,11 @@ pub fn print_single_heap(heap: &TaskHeap, staged_only: bool) {
     print_task_table(&heap.get_all_tasks(), staged_only);
 }
 
-pub fn print_all_tasks_flat(heapmap: &HeapMap, staged_only: bool, tags: &[String]) {
+pub fn print_all_tasks_flat(
+    heapmap: &HeapMap,
+    staged_only: bool,
+    tags: &[String],
+) -> Result<(), HeapError> {
     let mut heaps = heapmap
         .values()
         .filter(|heap| heap.has_tags(tags) && (!staged_only || !heap.is_all_complete()))
@@ -489,7 +500,12 @@ pub fn print_all_tasks_flat(heapmap: &HeapMap, staged_only: bool, tags: &[String
         .flat_map(|heap| heap.get_all_tasks())
         .collect::<Vec<_>>();
     print_heap_headers(heaps);
-    print_tasks_standalone(all_tasks, staged_only);
+    {
+        let stdout = std::io::stdout();
+        let mut handle = stdout.lock();
+        print_tasks_standalone(all_tasks, staged_only, &mut handle)?;
+    }
+    Ok(())
 }
 
 pub fn print_all_tasks(heapmap: &HeapMap, staged_only: bool, tags: &[String]) {

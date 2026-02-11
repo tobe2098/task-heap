@@ -13,6 +13,7 @@ use crate::utils::{
 use Command::*;
 use Options::*;
 use rand::{distributions::WeightedIndex, prelude::*};
+use std::io::Write;
 
 pub type Action<'a> = (Command<'a>, Vec<Options>);
 fn ignore_options(options: PeekIntoIter<Options>) {
@@ -42,6 +43,25 @@ fn ignore_options(options: PeekIntoIter<Options>) {
     if !option_string.is_empty() {
         println!("Ignoring options: \"{}\"", option_string);
     }
+}
+fn get_tag_and_staged(
+    command: &Command,
+    options: &mut PeekIntoIter<Options>,
+) -> (Vec<String>, bool) {
+    let mut tags_vec = Vec::new();
+    let mut is_staged = false;
+    while let Some(option) = options.next_if(|opt| opt.is_valid_for(command)) {
+        match option {
+            Tags(tags) => {
+                tags_vec = tags;
+            }
+            Staged => {
+                is_staged = true;
+            }
+            _ => unreachable!(),
+        }
+    }
+    (tags_vec, is_staged)
 }
 fn build_heap(
     name: impl Into<String>,
@@ -133,7 +153,11 @@ fn edit_task(task: &mut Task, options_iter: &mut PeekIntoIter<Options>, command:
         };
     }
 }
-fn pop_task(tags: Vec<String>, heapmap: &mut HeapMap) -> Result<&mut Task, HeapError> {
+fn pop_task(
+    tags: Vec<String>,
+    heapmap: &mut HeapMap,
+    mut output: impl Write,
+) -> Result<&mut Task, HeapError> {
     let candidates: Vec<(&String, Weight)> = heapmap
         .iter()
         .filter(|(_, heap)| !heap.is_empty() && heap.has_tags(&tags) && !heap.is_all_complete())
@@ -162,40 +186,47 @@ fn pop_task(tags: Vec<String>, heapmap: &mut HeapMap) -> Result<&mut Task, HeapE
         .get_task_mut(&NumOrStr::Num(selected_task))
         .ok_or(HeapError::IndexError)?;
     println!("The selected task for completion is:");
-    print_tasks_standalone(vec![selected_task], false);
+    {
+        let stdout: std::io::Stdout = std::io::stdout();
+        let mut handle = stdout.lock();
+        print_tasks_standalone(vec![selected_task], false, &mut handle)?;
+    }
     print!("Are you certain you can complete it? Are you a chicken or a penguin?");
     let input = get_yes_no()?;
     if input.to_lowercase() == "y" {
-        println!("Task is in progress. Penguin wishes you good luck!");
+        writeln!(
+            &mut output,
+            "Task is in progress. Penguin wishes you good luck!"
+        )?;
     } else {
-        println!("You gave up on the task. *Chicken noises*");
+        writeln!(&mut output, "You gave up on the task. *Chicken noises*")?;
         return Err(HeapError::UserSaidNo);
     }
     selected_task.in_progress();
-    //let task_name = selected_task.get_name().to_owned();
-    //println!("Popped {}.{} task", &selected_heap.get_name(), task_name);
     Ok(selected_task)
 }
 pub fn run_action(
     action: Action,
     heapmap: &mut HeapMap,
     active_task: &mut Option<TaskID>,
-) -> Result<(), HeapError> {
+) -> Result<Vec<u8>, HeapError> {
     let (command, options) = action;
     let mut options_iter = options.into_iter().peekable();
+    let mut output = Vec::new();
     match command {
         CreateHeap(ref heap_name) => {
             if heapmap.contains_key(heap_name) {
                 return Err(HeapError::HeapAlreadyExists(heap_name.to_owned()));
             }
             let heap = build_heap(heap_name, &mut options_iter, &command);
+            writeln!(&mut output, "Task heap {} created.", heap.get_name())?;
             heapmap.insert(heap.get_name().to_owned(), heap);
         }
         DestroyHeap(heap_name) => {
             print!("Are you sure you want to delete {heap_name}?");
             let input = get_yes_no()?;
             if input.to_lowercase() == "y" {
-                println!("Task heap deleted.");
+                writeln!(&mut output, "Task heap deleted.")?;
             } else {
                 return Err(HeapError::UserSaidNo);
             }
@@ -214,12 +245,10 @@ pub fn run_action(
                     "{heap_name}.{task_name}"
                 )));
             }
-            heap.push(build_task(
-                task_name,
-                heap_name,
-                &mut options_iter,
-                &command,
-            ));
+            writeln!(&mut output, "Task created:")?;
+            let task = build_task(task_name, heap_name, &mut options_iter, &command);
+            print_tasks_standalone(vec![&task], false, &mut output)?;
+            heap.push(task);
         }
         PopTask(tag_list) => {
             if let Some(task) = active_task.as_ref() {
@@ -227,7 +256,7 @@ pub fn run_action(
                     get_task_from_id(heapmap, task)?.get_full_name(),
                 ));
             }
-            match pop_task(tag_list, heapmap) {
+            match pop_task(tag_list, heapmap, &mut output) {
                 Ok(task) => {
                     active_task.replace((task.get_heap_name().into(), task.get_name().into()));
                 }
@@ -244,10 +273,10 @@ pub fn run_action(
                     "{heap_name}.{task_name}"
                 )));
             }
-            heap.insert_task(
-                build_task(task_name, heap_name, &mut options_iter, &command),
-                index,
-            );
+            let task = build_task(task_name, heap_name, &mut options_iter, &command);
+            writeln!(&mut output, "Task created at index {index}:")?;
+            print_tasks_standalone(vec![&task], false, &mut output)?;
+            heap.insert_task(task, index);
         }
         RemoveTask((heap_name, task_idx_name)) => {
             let heap = get_heap_from_arg(&heap_name, heapmap)?;
@@ -256,7 +285,7 @@ pub fn run_action(
                 print!("Are you sure you want to delete {}?", task.get_full_name());
                 let input = get_yes_no()?;
                 if input.to_lowercase() == "y" {
-                    println!("Task deleted.");
+                    writeln!(&mut output, "Task deleted.")?;
                 } else {
                     return Err(HeapError::UserSaidNo);
                 }
@@ -270,8 +299,10 @@ pub fn run_action(
             if let Some(task_idx_name) = task_idx_name_opt {
                 let (_, task) = get_task_from_arg(heap, task_idx_name)?;
                 edit_task(task, &mut options_iter, &command);
+                writeln!(&mut output, "Task edited.")?;
             } else {
                 edit_heap(heap, &mut options_iter, &command);
+                writeln!(&mut output, "Heap edited.")?;
             }
         }
         FinishTask((heap_name, task_idx_name)) => {
@@ -279,7 +310,7 @@ pub fn run_action(
             let (_, task) = get_task_from_arg(heap, &task_idx_name)?;
             task.finish();
             let _ = active_task.take_if(|t| format!("{}.{}", t.0, t.1) == task.get_full_name());
-            print_tasks_standalone(vec![task], false);
+            print_tasks_standalone(vec![task], false, &mut output)?;
         }
         StartTask((heap_name, task_idx_name)) => {
             if let Some(task) = active_task.as_ref() {
@@ -291,21 +322,21 @@ pub fn run_action(
             let (_, task) = get_task_from_arg(heap, &task_idx_name)?;
             task.in_progress();
             active_task.replace((task.get_heap_name().into(), task.get_name().into()));
-            print_tasks_standalone(vec![task], false);
+            print_tasks_standalone(vec![task], false, &mut output)?;
         }
         StageTask((heap_name, task_idx_name)) => {
             let heap = get_heap_from_arg(&heap_name, heapmap)?;
             let (_, task) = get_task_from_arg(heap, &task_idx_name)?;
             task.stage();
             let _ = active_task.take_if(|t| format!("{}.{}", t.0, t.1) == task.get_full_name());
-            print_tasks_standalone(vec![task], false);
+            print_tasks_standalone(vec![task], false, &mut output)?;
         }
         UnstageTask((heap_name, task_idx_name)) => {
             let heap = get_heap_from_arg(&heap_name, heapmap)?;
             let (_, task) = get_task_from_arg(heap, &task_idx_name)?;
             task.unstage();
             let _ = active_task.take_if(|t| format!("{}.{}", t.0, t.1) == task.get_full_name());
-            print_tasks_standalone(vec![task], false);
+            print_tasks_standalone(vec![task], false, &mut output)?;
         }
         StagedTasks => {
             let staged_tasks: Vec<&Task> = heapmap
@@ -313,7 +344,7 @@ pub fn run_action(
                 .filter(|heap| !heap.is_empty())
                 .flat_map(|heap| heap.get_staged_tasks())
                 .collect();
-            print_tasks_standalone(staged_tasks, true);
+            print_tasks_standalone(staged_tasks, true, &mut output)?;
         }
         CurrentTasks => {
             let current_tasks: Vec<&Task> = heapmap
@@ -321,7 +352,7 @@ pub fn run_action(
                 .filter(|heap| !heap.is_empty())
                 .flat_map(|heap| heap.get_current_tasks())
                 .collect();
-            print_tasks_standalone(current_tasks, true);
+            print_tasks_standalone(current_tasks, true, &mut output)?;
         }
         CompleteCurrent => {
             let Some(task) = active_task.take() else {
@@ -329,14 +360,14 @@ pub fn run_action(
             };
             let task = get_task_from_id(heapmap, &task)?;
             task.finish();
-            println!("Completed {}", task.get_full_name())
+            writeln!(&mut output, "Completed {}", task.get_full_name())?;
         }
         ClearDone(heap_name) => {
             let heap = get_heap_from_arg(&heap_name, heapmap)?;
             print!("Are you sure you want to delete all done tasks in {heap_name}?");
             let input = get_yes_no()?;
             if input.to_lowercase() == "y" {
-                println!("Tasks deleted.");
+                writeln!(&mut output, "Tasks deleted.")?;
             } else {
                 return Err(HeapError::UserSaidNo);
             }
@@ -347,32 +378,26 @@ pub fn run_action(
             print!("Are you sure you want to delete all tasks in {heap_name}?");
             let input = get_yes_no()?;
             if input.to_lowercase() == "y" {
-                println!("Tasks deleted.");
+                writeln!(&mut output, "Tasks deleted.")?;
             } else {
                 return Err(HeapError::UserSaidNo);
             }
             heap.clear_all();
         }
-        List(heap_name_opt) => {
+        List(ref heap_name_opt) => {
             //Either list all heaps with their tasks or a single heap
-            let tags = match options_iter.next().unwrap_or(Tags(vec![])) {
-                Tags(t) => t,
-                _ => vec![],
-            };
+            let (tags, is_staged) = get_tag_and_staged(&command, &mut options_iter);
             if let Some(heap_name) = heap_name_opt {
-                let heap = get_heap_from_arg(&heap_name, heapmap)?;
-                print_single_heap(heap, false);
+                let heap = get_heap_from_arg(heap_name, heapmap)?;
+                print_single_heap(heap, is_staged);
             } else {
-                print_all_tasks(heapmap, true, &tags);
+                print_all_tasks(heapmap, is_staged, &tags);
             }
         }
         FlatList => {
             //Either list all heaps with their tasks or a single heap
-            let tags = match options_iter.next().unwrap_or(Tags(vec![])) {
-                Tags(t) => t,
-                _ => vec![],
-            };
-            print_all_tasks_flat(heapmap, false, &tags);
+            let (tags, is_staged) = get_tag_and_staged(&command, &mut options_iter);
+            print_all_tasks_flat(heapmap, is_staged, &tags)?;
         }
         Heaps => {
             //Print only heap headers and staged
@@ -391,5 +416,5 @@ pub fn run_action(
     //    Ok(_) => Ok(()),
     //    Err(e) => Err(HeapError::FileError(e)),
     //}
-    Ok(())
+    Ok(output)
 }
