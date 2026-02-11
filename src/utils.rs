@@ -52,15 +52,15 @@ pub fn check_task_id(heapmap: &HeapMap, task_id: &TaskID) -> Result<(), HeapErro
         .ok_or_else(|| HeapError::TaskNotFound(task_id.1.clone()))?;
     Ok(())
 }
-pub fn extract_array_by_tag<'a, F, R>(map: &'a HeapMap, tags: &[String], closure: F) -> Vec<R>
-where
-    F: FnMut((&'a String, &'a TaskHeap)) -> R,
-{
-    map.iter()
-        .filter(|tuple| tuple.1.has_tags(tags))
-        .map(closure)
-        .collect()
-}
+//pub fn extract_array_by_tag<'a, F, R>(map: &'a HeapMap, tags: &[String], closure: F) -> Vec<R>
+//where
+//    F: FnMut((&'a String, &'a TaskHeap)) -> R,
+//{
+//    map.iter()
+//        .filter(|tuple| tuple.1.has_tags(tags))
+//        .map(closure)
+//        .collect()
+//}
 
 pub fn get_heap_and_task(
     args_iterator: &mut ArgsIter,
@@ -81,7 +81,7 @@ pub fn get_heap_and_task(
 }
 
 pub fn get_name(args_iterator: &mut ArgsIter) -> Result<Option<String>, HeapError> {
-    cannot_have_whitespace(cannot_have_separator(get_non_opt_arg(args_iterator)))
+    is_filename_safe(get_non_opt_arg(args_iterator))
 }
 
 pub fn get_heap_name(args_iterator: &mut ArgsIter) -> Result<Option<String>, HeapError> {

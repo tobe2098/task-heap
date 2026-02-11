@@ -6,24 +6,18 @@ pub enum HeapError {
     //CorruptKey(String),
     FileError(std::io::Error),
     WeightParseError(ParseIntError),
-    FileDoesNotExist,
     MissingCommand,
     UnknownCommand(String),
     MissingOption((String, String)),
     ArgumentCannotHaveWhitespace,
     ArgumentCannotHaveSeparator,
-    MissingArgument,
     InvalidHeapName,
     InvalidWeights,
-    InvalidHeapTaskPair(String),
-    DoesNotTakeArg(String),
     TagCannotBeEmpty,
-    NoTaggedElements(String),
     TaskNotFound(String),
     TaskAlreadyExists(String),
     NoHeapsFound,
     SomeHeapsAreFinished,
-    NoTasksFound,
     IndexError,
     UserSaidNo,
     HeapNotFound(String),
@@ -41,12 +35,10 @@ impl fmt::Display for HeapError {
                 write!(f, "Data row is corrupt: {str}")
             }
             //HeapError::CorruptKey(e) => write!(f, "Parsing Error: {}", e),
-            FileDoesNotExist => write!(f, "File does not exist"),
             MissingCommand => write!(f, "No command was used"),
             UserSaidNo => write!(f, "You backed down."),
             UnknownCommand(str) => write!(f, "Unknown command: {str}"),
             MissingOption((arg, cmd)) => write!(f, "A {arg} is required for `{cmd}`."),
-            DoesNotTakeArg(str) => write!(f, "`{str}` does not take options."),
             ArgumentCannotHaveWhitespace => write!(f, "The argument cannot have whitespace"),
             InvalidHeapName => write!(
                 f,
@@ -63,18 +55,10 @@ impl fmt::Display for HeapError {
                     crate::utils::SEPARATOR
                 )
             }
-            InvalidHeapTaskPair(reason) => writeln!(
-                f,
-                "Not a valid heap.task pair: {reason}.\n Use
-                \"heap_name.task_name\""
-            ),
             NoTaskInProgress => writeln!(f, "There is no task in progress, use `pop`."),
-            MissingArgument => writeln!(f, "Missing argument."),
             TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or contain whitespace."),
             TaskNotFound(name) => writeln!(f, "Task \"{name}\" was not found."),
             TaskAlreadyExists(name) => writeln!(f, "Task \"{name}\" already exists."),
-            NoTaggedElements(tag) => writeln!(f, "No elements found where tags {tag} intersect."),
-            NoTasksFound => writeln!(f, "No tasks were found."),
             NoHeapsFound => writeln!(f, "No heaps were found."),
             SomeHeapsAreFinished => writeln!(f, "Some heaps only have finished tasks."),
             IndexError => writeln!(f, "Index was out of bounds."),

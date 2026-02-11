@@ -286,7 +286,7 @@ pub fn parse_command<'a>(mut args_iterator: utils::ArgsIter) -> Result<Action<'a
             let task_index_or_name = match option_pair.1 {
                 Some(task_index) => match task_index.parse::<usize>() {
                     Ok(index) => NumOrStr::Num(index),
-                    Err(_) => NumOrStr::Str(&task_index),
+                    Err(_) => NumOrStr::String(task_index),
                 },
                 None => {
                     return Err(HeapError::MissingOption((

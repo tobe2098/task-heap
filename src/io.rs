@@ -1,8 +1,8 @@
 use crate::{
-    HeapError, HeapMap,
+    error::HeapError,
     heap::TaskHeap,
     task::{Task, TaskStatus},
-    utils::{TaskID, check_task_id},
+    utils::{HeapMap, TaskID, check_task_id},
 };
 use directories::ProjectDirs;
 use std::{
@@ -87,11 +87,7 @@ pub fn write_meta_file(active_task: Option<TaskID>) -> std::io::Result<()> {
         .truncate(true)
         .open(db_path.join("meta.csv"))?;
     if let Some(active_task) = active_task {
-        writeln!(
-            &meta_file,
-            "{}",
-            format!("{}.{}", active_task.0, active_task.1)
-        )?;
+        writeln!(&meta_file, "{}.{}", active_task.0, active_task.1)?;
     } else {
         writeln!(&meta_file, "{}", VOID)?;
     }
@@ -113,11 +109,10 @@ pub fn read_task_heap() -> Result<HeapMap, HeapError> {
     let db_path = get_db_path();
     let mut heapmap = HeapMap::new();
     for file in fs::read_dir(db_path)?
-        .into_iter()
         .filter(|name| name.as_ref().is_ok_and(|v| v.file_name() != "meta.bsv"))
     {
         let file = file?;
-        let content = fs::read_to_string(&file.path())?;
+        let content = fs::read_to_string(file.path())?;
         let mut heap: TaskHeap = content.parse()?;
         heap.set_name(
             file.file_name()
@@ -137,7 +132,7 @@ pub fn read_meta_file(heapmap: &HeapMap) -> Result<Option<TaskID>, HeapError> {
     if let Some(Ok(line)) = reader.next()
         && line != VOID
     {
-        let mut parts = line.splitn(2, ".").into_iter();
+        let mut parts = line.splitn(2, ".");
         let heap_name = parts
             .next()
             .ok_or_else(|| HeapError::CorruptData(line.to_owned()))?;
@@ -152,9 +147,9 @@ pub fn read_meta_file(heapmap: &HeapMap) -> Result<Option<TaskID>, HeapError> {
                 return Ok(None);
             }
         }
-        return Ok(Some(task_id));
+        Ok(Some(task_id))
     } else {
-        return Ok(None);
+        Ok(None)
     }
 }
 fn print_task_table(tasks: &Vec<&Task>, staged_only: bool) {
@@ -315,86 +310,86 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
     }
     //rintln!("{}", "-".repeat(term_width));
 }
-fn print_single_header(heap: &TaskHeap) {
-    let term_width = if let Some((Width(w), _)) = terminal_size() {
-        w as usize
-    } else {
-        80
-    };
-
-    const W_WEIGHT: usize = 6;
-    const W_STATE_SUM: usize = 15;
-    const BORDER_OVERHEAD: usize = 19;
-
-    let remaining_width = term_width.saturating_sub(W_WEIGHT + W_STATE_SUM + BORDER_OVERHEAD);
-    const RATIO_NAME_TAGS: f64 = 0.5;
-    let w_name = (remaining_width as f64 * RATIO_NAME_TAGS) as usize;
-    let w_tags = (remaining_width as f64 * (1. - RATIO_NAME_TAGS)) as usize;
-    let w_name = w_name.max(5);
-    let w_tags = w_tags.max(10);
-    //println!("+{}", "-".repeat(term_width - 5));
-    //println!(
-    //    "{:<n$} | {:>w$} | {:<t$} | {:<s$}",
-    //    "HEAP NAME",
-    //    "WEIGHT",
-    //    "TAGS",
-    //    "STATE SUM",
-    //    n = w_name,
-    //    t = w_tags,
-    //    w = W_WEIGHT,
-    //    s = W_STATE_SUM,
-    //);
-    //println!("{}", "-".repeat(term_width));
-    // Tags need to be sorted to look consistent (HashSet is random!)
-    let mut tags = heap.get_tags();
-    tags.sort();
-    let tags_string = tags
-        .into_iter()
-        .map(|s| s.to_owned())
-        .collect::<Vec<_>>()
-        .join(",");
-    let tag_lines = wrap(&tags_string, w_tags);
-    let name_lines = wrap(heap.get_name(), w_name);
-    let state_sums = heap.get_states_sum();
-    let order = vec![
-        TaskStatus::Idle,
-        TaskStatus::Staged,
-        TaskStatus::InProgress,
-        TaskStatus::Finished,
-    ];
-    let state_str = order
-        .into_iter()
-        .map(|variant| state_sums.get(&variant).unwrap_or(&0u32).to_string())
-        .collect::<Vec<_>>()
-        .join("/");
-    let state_lines = wrap(&state_str, w_tags);
-    let max_lines = name_lines.len().max(state_lines.len()).max(tag_lines.len());
-    for i in 0..max_lines {
-        let name_part = name_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
-        let state_part = state_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
-        let tags_part = tag_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
-
-        // Only print Weight/State on the FIRST line of the row
-        let weight_part = if i == 0 {
-            truncate(&heap.get_weight().to_string(), W_WEIGHT)
-        } else {
-            "".to_owned()
-        };
-
-        println!(
-            "Heap: {:<n$} | {:<w$} | {:>t$} | {:<s$}",
-            name_part,
-            weight_part,
-            tags_part,
-            state_part,
-            n = w_name,
-            t = w_tags,
-            w = W_WEIGHT,
-            s = W_STATE_SUM
-        );
-    }
-    //rintln!("{}", "-".repeat(term_width));
-}
+//fn print_single_header(heap: &TaskHeap) {
+//    let term_width = if let Some((Width(w), _)) = terminal_size() {
+//        w as usize
+//    } else {
+//        80
+//    };
+//
+//    const W_WEIGHT: usize = 6;
+//    const W_STATE_SUM: usize = 15;
+//    const BORDER_OVERHEAD: usize = 19;
+//
+//    let remaining_width = term_width.saturating_sub(W_WEIGHT + W_STATE_SUM + BORDER_OVERHEAD);
+//    const RATIO_NAME_TAGS: f64 = 0.5;
+//    let w_name = (remaining_width as f64 * RATIO_NAME_TAGS) as usize;
+//    let w_tags = (remaining_width as f64 * (1. - RATIO_NAME_TAGS)) as usize;
+//    let w_name = w_name.max(5);
+//    let w_tags = w_tags.max(10);
+//    //println!("+{}", "-".repeat(term_width - 5));
+//    //println!(
+//    //    "{:<n$} | {:>w$} | {:<t$} | {:<s$}",
+//    //    "HEAP NAME",
+//    //    "WEIGHT",
+//    //    "TAGS",
+//    //    "STATE SUM",
+//    //    n = w_name,
+//    //    t = w_tags,
+//    //    w = W_WEIGHT,
+//    //    s = W_STATE_SUM,
+//    //);
+//    //println!("{}", "-".repeat(term_width));
+//    // Tags need to be sorted to look consistent (HashSet is random!)
+//    let mut tags = heap.get_tags();
+//    tags.sort();
+//    let tags_string = tags
+//        .into_iter()
+//        .map(|s| s.to_owned())
+//        .collect::<Vec<_>>()
+//        .join(",");
+//    let tag_lines = wrap(&tags_string, w_tags);
+//    let name_lines = wrap(heap.get_name(), w_name);
+//    let state_sums = heap.get_states_sum();
+//    let order = vec![
+//        TaskStatus::Idle,
+//        TaskStatus::Staged,
+//        TaskStatus::InProgress,
+//        TaskStatus::Finished,
+//    ];
+//    let state_str = order
+//        .into_iter()
+//        .map(|variant| state_sums.get(&variant).unwrap_or(&0u32).to_string())
+//        .collect::<Vec<_>>()
+//        .join("/");
+//    let state_lines = wrap(&state_str, w_tags);
+//    let max_lines = name_lines.len().max(state_lines.len()).max(tag_lines.len());
+//    for i in 0..max_lines {
+//        let name_part = name_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
+//        let state_part = state_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
+//        let tags_part = tag_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
+//
+//        // Only print Weight/State on the FIRST line of the row
+//        let weight_part = if i == 0 {
+//            truncate(&heap.get_weight().to_string(), W_WEIGHT)
+//        } else {
+//            "".to_owned()
+//        };
+//
+//        println!(
+//            "Heap: {:<n$} | {:<w$} | {:>t$} | {:<s$}",
+//            name_part,
+//            weight_part,
+//            tags_part,
+//            state_part,
+//            n = w_name,
+//            t = w_tags,
+//            w = W_WEIGHT,
+//            s = W_STATE_SUM
+//        );
+//    }
+//    //rintln!("{}", "-".repeat(term_width));
+//}
 
 pub fn print_tasks_standalone(tasks: Vec<&Task>, staged_only: bool) {
     let term_width = if let Some((Width(w), _)) = terminal_size() {
