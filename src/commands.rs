@@ -31,18 +31,18 @@ const TAG_OPT: &str = "--tag";
 const UNTAG_OPT: &str = "--untag";
 const STAGED_OPT1: &str = "--staged";
 const STAGED_OPT2: &str = "-s";
-pub enum Command {
+pub enum Command<'a> {
     CreateHeap(String),
     DestroyHeap(String),
-    PushTask((String, String)),          //Push task onto stack.
-    PopTask(Vec<String>),                //Pop task from staged tasks.
-    InsertTask((String, String, usize)), //Indexed or by name.
-    RemoveTask((String, NumOrStr)),      //||
-    Edit((String, Option<NumOrStr>)),    //Both stack or task and the stack is the argument.
-    FinishTask((String, NumOrStr)),
-    StageTask((String, NumOrStr)),   //Arg is stack always
-    UnstageTask((String, NumOrStr)), //Stage or unstage
-    StartTask((String, NumOrStr)),   //Stage or unstage
+    PushTask((String, String)),           //Push task onto stack.
+    PopTask(Vec<String>),                 //Pop task from staged tasks.
+    InsertTask((String, String, usize)),  //Indexed or by name.
+    RemoveTask((String, NumOrStr<'a>)),   //||
+    Edit((String, Option<NumOrStr<'a>>)), //Both stack or task and the stack is the argument.
+    FinishTask((String, NumOrStr<'a>)),
+    StageTask((String, NumOrStr<'a>)),   //Arg is stack always
+    UnstageTask((String, NumOrStr<'a>)), //Stage or unstage
+    StartTask((String, NumOrStr<'a>)),   //Stage or unstage
     CurrentTasks,
     StagedTasks,
     CompleteCurrent,
@@ -94,7 +94,7 @@ impl Options {
         }
     }
 }
-pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapError> {
+pub fn parse_command<'a>(mut args_iterator: utils::ArgsIter) -> Result<Action<'a>, HeapError> {
     //Only one command, so:
     let Some(cmd_str) = args_iterator.next() else {
         return Err(HeapError::MissingCommand);
@@ -181,7 +181,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
             let task_index_or_name = match option_pair.1 {
                 Some(task_index) => match task_index.parse::<usize>() {
                     Ok(index) => NumOrStr::Num(index),
-                    Err(_) => NumOrStr::Str(task_index),
+                    Err(_) => NumOrStr::String(task_index),
                 },
                 None => {
                     return Err(HeapError::MissingOption((
@@ -203,7 +203,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
             let task_index_or_name = match option_pair.1 {
                 Some(task_index) => match task_index.parse::<usize>() {
                     Ok(index) => Some(NumOrStr::Num(index)),
-                    Err(_) => Some(NumOrStr::Str(task_index)),
+                    Err(_) => Some(NumOrStr::String(task_index)),
                 },
                 None => None,
             };
@@ -220,7 +220,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
             let task_index_or_name = match option_pair.1 {
                 Some(task_index) => match task_index.parse::<usize>() {
                     Ok(index) => NumOrStr::Num(index),
-                    Err(_) => NumOrStr::Str(task_index),
+                    Err(_) => NumOrStr::String(task_index),
                 },
                 None => {
                     return Err(HeapError::MissingOption((
@@ -242,7 +242,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
             let task_index_or_name = match option_pair.1 {
                 Some(task_index) => match task_index.parse::<usize>() {
                     Ok(index) => NumOrStr::Num(index),
-                    Err(_) => NumOrStr::Str(task_index),
+                    Err(_) => NumOrStr::String(task_index),
                 },
                 None => {
                     return Err(HeapError::MissingOption((
@@ -264,7 +264,7 @@ pub fn parse_command(mut args_iterator: utils::ArgsIter) -> Result<Action, HeapE
             let task_index_or_name = match option_pair.1 {
                 Some(task_index) => match task_index.parse::<usize>() {
                     Ok(index) => NumOrStr::Num(index),
-                    Err(_) => NumOrStr::Str(task_index),
+                    Err(_) => NumOrStr::String(task_index),
                 },
                 None => {
                     return Err(HeapError::MissingOption((
