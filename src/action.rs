@@ -49,7 +49,7 @@ fn build_heap(
     command: &Command,
 ) -> TaskHeap {
     let mut builder = HeapBuilder::new(name.into());
-    while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
+    while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(command)) {
         match qualifier {
             Weight(weight_str) => {
                 builder.weight(weight_str);
@@ -72,7 +72,7 @@ fn build_task(
     command: &Command,
 ) -> Task {
     let mut builder = TaskBuilder::new(name.into(), heap_name.into());
-    while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
+    while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(command)) {
         match qualifier {
             Description(desc) => {
                 builder.description(desc);
@@ -87,7 +87,7 @@ fn build_task(
     Task::from(builder)
 }
 fn edit_heap(heap: &mut TaskHeap, options_iter: &mut PeekIntoIter<Options>, command: &Command) {
-    while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
+    while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(command)) {
         match qualifier {
             Name(name) => {
                 heap.set_name(name);
@@ -117,7 +117,7 @@ fn edit_heap(heap: &mut TaskHeap, options_iter: &mut PeekIntoIter<Options>, comm
     }
 }
 fn edit_task(task: &mut Task, options_iter: &mut PeekIntoIter<Options>, command: &Command) {
-    while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(&command)) {
+    while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(command)) {
         match qualifier {
             Name(name) => {
                 task.set_name(name);
@@ -133,7 +133,7 @@ fn edit_task(task: &mut Task, options_iter: &mut PeekIntoIter<Options>, command:
         };
     }
 }
-fn pop_task<'a>(tags: Vec<String>, heapmap: &'a mut HeapMap) -> Result<&'a mut Task, HeapError> {
+fn pop_task(tags: Vec<String>, heapmap: &mut HeapMap) -> Result<&mut Task, HeapError> {
     let candidates: Vec<(&String, Weight)> = heapmap
         .iter()
         .filter(|(_, heap)| !heap.is_empty() && heap.has_tags(&tags) && !heap.is_all_complete())
@@ -148,9 +148,7 @@ fn pop_task<'a>(tags: Vec<String>, heapmap: &'a mut HeapMap) -> Result<&'a mut T
     let (key, _) = candidates[distribution.sample(&mut rng)];
     let key = key.to_owned();
     // For simplicity, just pick the first heap that has tasks.
-    let heap = heapmap
-        .get_mut(&key)
-        .ok_or(HeapError::HeapNotFound(key.into()))?;
+    let heap = heapmap.get_mut(&key).ok_or(HeapError::HeapNotFound(key))?;
     let (staged_weights, staged_tasks): (Vec<Weight>, Vec<usize>) = heap.get_staged();
 
     let selected_task: usize = if let Ok(dist) = WeightedIndex::new(&staged_weights) {
@@ -178,7 +176,7 @@ fn pop_task<'a>(tags: Vec<String>, heapmap: &'a mut HeapMap) -> Result<&'a mut T
     //println!("Popped {}.{} task", &selected_heap.get_name(), task_name);
     Ok(selected_task)
 }
-pub fn run_action<'a>(
+pub fn run_action(
     action: Action,
     heapmap: &mut HeapMap,
     active_task: &mut Option<TaskID>,
@@ -210,7 +208,7 @@ pub fn run_action<'a>(
             }
         }
         PushTask((ref heap_name, ref task_name)) => {
-            let heap = get_heap_from_arg(&heap_name, heapmap)?;
+            let heap = get_heap_from_arg(heap_name, heapmap)?;
             if heap.get_task(&NumOrStr::Str(task_name)).is_some() {
                 return Err(HeapError::TaskAlreadyExists(format!(
                     "{heap_name}.{task_name}"
@@ -240,8 +238,8 @@ pub fn run_action<'a>(
             };
         }
         InsertTask((ref heap_name, ref task_name, index)) => {
-            let heap = get_heap_from_arg(&heap_name, heapmap)?;
-            if heap.get_task(&NumOrStr::Str(&task_name)).is_some() {
+            let heap = get_heap_from_arg(heap_name, heapmap)?;
+            if heap.get_task(&NumOrStr::Str(task_name)).is_some() {
                 return Err(HeapError::TaskAlreadyExists(format!(
                     "{heap_name}.{task_name}"
                 )));
@@ -268,7 +266,7 @@ pub fn run_action<'a>(
             heap.remove_task(index);
         }
         Edit((ref heap_name, ref task_idx_name_opt)) => {
-            let heap = get_heap_from_arg(&heap_name, heapmap)?;
+            let heap = get_heap_from_arg(heap_name, heapmap)?;
             if let Some(task_idx_name) = task_idx_name_opt {
                 let (_, task) = get_task_from_arg(heap, task_idx_name)?;
                 edit_task(task, &mut options_iter, &command);
@@ -363,9 +361,9 @@ pub fn run_action<'a>(
             };
             if let Some(heap_name) = heap_name_opt {
                 let heap = get_heap_from_arg(&heap_name, heapmap)?;
-                print_single_heap(&heap, false);
+                print_single_heap(heap, false);
             } else {
-                print_all_tasks(&heapmap, true, &tags);
+                print_all_tasks(heapmap, true, &tags);
             }
         }
         FlatList => {
@@ -374,7 +372,7 @@ pub fn run_action<'a>(
                 Tags(t) => t,
                 _ => vec![],
             };
-            print_all_tasks_flat(&heapmap, false, &tags);
+            print_all_tasks_flat(heapmap, false, &tags);
         }
         Heaps => {
             //Print only heap headers and staged
@@ -382,7 +380,7 @@ pub fn run_action<'a>(
                 Tags(t) => t,
                 _ => vec![],
             };
-            print_heaps_only(&heapmap, &tags);
+            print_heaps_only(heapmap, &tags);
         }
         Help => {
             print_help();

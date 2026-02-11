@@ -98,7 +98,7 @@ impl TaskHeap {
             .enumerate()
             .filter_map(|task| {
                 if task.1.is_staged() {
-                    return Some((task.1.get_weight(), task.0));
+                    Some((task.1.get_weight(), task.0))
                 } else {
                     None
                 }
@@ -120,27 +120,12 @@ impl TaskHeap {
     pub fn get_states_sum(&self) -> HashMap<TaskStatus, u32> {
         let mut hashmap = HashMap::new();
         for task in &self.tasks {
-            *hashmap
+            hashmap
                 .entry(task.get_state())
                 .and_modify(|counter| *counter += 1)
                 .or_insert(1);
         }
         hashmap
-    }
-    pub fn set_done(&mut self, name_or_idx: &NumOrStr) -> Result<(), HeapError> {
-        self.get_task_mut(name_or_idx)
-            .ok_or(HeapError::IndexError)?
-            .1
-            .finish();
-        if self.tasks.iter().all(|task| !task.is_staged()) {
-            for task in &mut self.tasks {
-                if task.is_unstaged() {
-                    task.stage();
-                    break;
-                }
-            }
-        }
-        Ok(())
     }
     pub fn clear_done(&mut self) {
         self.tasks.retain(|task| !task.is_finished());
@@ -153,9 +138,6 @@ impl TaskHeap {
     }
     pub fn is_all_complete(&self) -> bool {
         self.tasks.iter().all(|task| task.is_finished())
-    }
-    pub fn len(&self) -> usize {
-        self.tasks.len()
     }
     pub fn get_name(&self) -> &str {
         &self.name
@@ -211,11 +193,11 @@ impl FromStr for TaskHeap {
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         //The first line is the header, the rest are tasks.
         //The heap name must be set according to filename externally
-        let mut lines = input.lines().into_iter();
+        let mut lines = input.lines();
         let header = lines
             .next()
             .ok_or_else(|| HeapError::CorruptData(input.to_owned()))?;
-        let mut header_iter = header.split(utils::SEPARATOR).into_iter();
+        let mut header_iter = header.split(utils::SEPARATOR);
         let name = header_iter
             .next()
             .ok_or_else(|| HeapError::CorruptData(input.to_owned()))?

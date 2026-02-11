@@ -1,6 +1,3 @@
-//TODO: store hash
-//TODO: Move to stack?
-//TODO: Multiple stacks, the stacks are in a heap
 //TODO: Single message for each command via help
 //Change storage to use a different separator/filter for non-separator chars.
 //Wrap errors in another error type to be able to get "push": "Missing argument"
@@ -16,7 +13,6 @@ use crate::{
     action::run_action,
     commands::parse_command,
     io::{read_meta_file, read_task_heap, write_meta_file, write_task_heap},
-    utils::HeapMap,
 };
 mod action;
 mod heap;

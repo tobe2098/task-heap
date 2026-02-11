@@ -119,9 +119,6 @@ impl Task {
     pub fn is_staged(&self) -> bool {
         matches!(self.status, Staged)
     }
-    pub fn is_unstaged(&self) -> bool {
-        matches!(self.status, Idle)
-    }
     pub fn get_state(&self) -> TaskStatus {
         self.status.clone()
     }
@@ -146,7 +143,7 @@ impl FromStr for Task {
     type Err = HeapError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let mut parts = input.split(SEPARATOR).into_iter();
+        let mut parts = input.split(SEPARATOR);
 
         // 1. Name: Strict (Must exist and not be empty)
         let heap_task_raw = parts
