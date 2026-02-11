@@ -7,34 +7,33 @@
 //Maybe move? within edit?
 //Uses for -a flag
 //For now, rigid args (req)
+mod commands;
 mod error;
 use error::HeapError;
 mod io;
 mod task;
-use io::{print_single_task, print_task_table, read_task_heap, write_task_heap};
-mod commands;
 use crate::{
-    commands::{Command, parse_command},
-    io::get_yes_no,
+    action::run_action,
+    commands::parse_command,
+    io::{read_meta_file, read_task_heap, write_meta_file, write_task_heap},
     utils::HeapMap,
 };
 mod action;
 mod heap;
 mod utils;
-use utils::{Weight, extract_array_by_tag};
 
-use rand::{distributions::WeightedIndex, prelude::*};
 use std::env;
 
 fn main() -> Result<(), HeapError> {
     let args: Vec<String> = env::args().collect();
-    let mut args_iterator = args.into_iter().skip(1).peekable();
+    let args_iterator = args.into_iter().skip(1).peekable();
 
     let action = parse_command(args_iterator)?;
+    let mut heapmap = read_task_heap()?;
+    let mut active_task = read_meta_file(&heapmap)?;
+    run_action(action, &mut heapmap, &mut active_task)?;
 
-    let mut task_heap = read_task_heap().unwrap_or_else(|err| {
-        println!("Error reading the task heap: {err}.\nCreating a new heap...");
-        TaskHeap::new()
-    });
-    run_commands(commands)
+    write_meta_file(active_task)?;
+    write_task_heap(heapmap)?;
+    Ok(())
 }
