@@ -56,21 +56,32 @@ impl TaskHeap {
     pub fn get_task(&self, name_or_idx: &NumOrStr) -> Option<(usize, &Task)> {
         match name_or_idx {
             NumOrStr::Num(idx) => self.tasks.get(*idx).map(|val| (*idx, val)),
-            NumOrStr::Str(name) => self
+            &NumOrStr::Str(name) => self
                 .tasks
                 .iter()
                 .enumerate()
                 .find(|pair| pair.1.get_name() == name),
+
+            NumOrStr::String(name) => self
+                .tasks
+                .iter()
+                .enumerate()
+                .find(|pair| pair.1.get_name() == name.as_str()),
         }
     }
     pub fn get_task_mut(&mut self, name_or_idx: &NumOrStr) -> Option<(usize, &mut Task)> {
         match name_or_idx {
             NumOrStr::Num(idx) => self.tasks.get_mut(*idx).map(|val| (*idx, val)),
-            NumOrStr::Str(name) => self
+            &NumOrStr::Str(name) => self
                 .tasks
                 .iter_mut()
                 .enumerate()
                 .find(|pair| pair.1.get_name() == name),
+            NumOrStr::String(name) => self
+                .tasks
+                .iter_mut()
+                .enumerate()
+                .find(|pair| pair.1.get_name() == name.as_str()),
         }
     }
     pub fn get_first_unfinished_task(&self) -> Option<usize> {
