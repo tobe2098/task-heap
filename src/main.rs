@@ -1,4 +1,6 @@
 //TODO: Single message for each command via help
+//TODO: undo command. Undo with a Reverse action stack (prevact.csv)
+
 mod commands;
 mod error;
 use error::HeapError;
@@ -23,8 +25,21 @@ fn main() -> Result<(), HeapError> {
     let mut heapmap = read_task_heap()?;
     let mut active_task = read_meta_file(&heapmap)?;
     let result_messages = run_action(action, &mut heapmap, &mut active_task)?;
-    write_meta_file(active_task)?;
-    write_task_heap(heapmap)?;
+    match write_meta_file(active_task) {
+        Ok(_) => (),
+        Err(e) => eprintln!(
+            "Warning: could not write meta file, some data may have been corrupted: {}",
+            e
+        ),
+    };
+    match write_task_heap(heapmap) {
+        Ok(_) => (),
+        Err(e) => eprintln!(
+            "Warning: could not write task heap file, some data may have been
+corrupted: {}",
+            e
+        ),
+    };
     std::io::stdout().write_all(&result_messages)?;
     Ok(())
 }

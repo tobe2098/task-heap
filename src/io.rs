@@ -14,54 +14,9 @@ use std::{
 use terminal_size::{Width, terminal_size};
 use textwrap::wrap;
 const VOID: &str = "$VOID$";
-pub fn print_help() {
-    const VERSION: &str = env!("CARGO_PKG_VERSION");
-    println!("task-heap v{VERSION} prints tasks");
-    println!("Usage: task-heap ([--action] [--options])*");
-    println!();
-    println!("Actions:");
-    println!("\t-i, --push              Push a task by name onto the task heap,");
-    println!("                          with optional tags and description.");
-    println!();
-    println!("\t-o, --pop               Pop a task at random from the task heap");
-    println!("                          by weight, with optional tag filter.");
-    println!();
-    println!("\t-d, --delete            Delete a task by name or by tag.");
-    println!();
-    println!("\t-r, --reset             Delete all tasks.");
-    println!();
-    println!("\t-e, --edit              Edit a task's name, description, tags or");
-    println!("                          weight.");
-    println!();
-    println!("\t-ct, --clear-tags       Clear all tags from a task by name.");
-    println!();
-    println!("\t-l, --list              List all tasks or tasks filtered by tag.");
-    println!();
-    println!("\t-h, --help              Print this message.");
-    println!();
-    println!("Options:");
-    println!("\t-n, --name              Specify a new name when editing a task.");
-    println!();
-    println!("\t-p, --description       Specify a description when creating or");
-    println!("                          editing a task.");
-    println!();
-    println!("\t-t, --tag               Specify a number of single-word tags to");
-    println!("                          add to a task, or to filter tasks by.");
-    println!();
-    println!("\t-ut, --untag            Specify a number of single-word tags to");
-    println!("                          remove from a task when editing.");
-    println!();
-    println!("\t-n, --name              Specify a new name when editing a task.");
-    println!();
-    //Undo with a Reverse action stack (prevact.csv)
-    //List print prints staged tasks, filtered by tags.
-    //List all as well -a
-    //How do I deal with current in progress? Keep name of heap and task. How do I find the current and how do I limit it to
-    //one? Metadata file with this.
-}
 fn get_db_path() -> PathBuf {
     match env::var("TASK_HEAP_DBPATH") {
-        Ok(path) => PathBuf::from_str(&path).unwrap().join("./db.csv"),
+        Ok(path) => PathBuf::from_str(&path).unwrap(),
         Err(_) => {
             if let Some(proj_dirs) = ProjectDirs::from("com", "tobe", "task-heap") {
                 // 2. Get the specific data directory (e.g., AppData/Roaming/task-heap)
@@ -83,9 +38,10 @@ fn get_db_path() -> PathBuf {
 pub fn write_meta_file(active_task: Option<TaskID>) -> std::io::Result<()> {
     let db_path = get_db_path();
     let meta_file = fs::OpenOptions::new()
+        .write(true)
         .create(true)
         .truncate(true)
-        .open(db_path.join("meta.csv"))?;
+        .open(db_path.join("meta.dbsv"))?;
     if let Some(active_task) = active_task {
         writeln!(&meta_file, "{}.{}", active_task.0, active_task.1)?;
     } else {
@@ -98,8 +54,8 @@ pub fn write_task_heap(heapmap: HeapMap) -> std::io::Result<()> {
     for heap in heapmap.values() {
         let db_file: fs::File = fs::OpenOptions::new()
             .create(true)
-            .append(true)
-            .open(db_path.join(format!("{}.bsv", heap.get_name())))?;
+            .truncate(true)
+            .open(db_path.join(format!("{}.dbsv", heap.get_name())))?;
         writeln!(&db_file, "{}", heap)?;
     }
     Ok(())
@@ -109,10 +65,13 @@ pub fn read_task_heap() -> Result<HeapMap, HeapError> {
     let db_path = get_db_path();
     let mut heapmap = HeapMap::new();
     for file in fs::read_dir(db_path)?
-        .filter(|name| name.as_ref().is_ok_and(|v| v.file_name() != "meta.bsv"))
+        .filter(|name| name.as_ref().is_ok_and(|v| v.file_name() != "meta.dbsv"))
     {
         let file = file?;
         let content = fs::read_to_string(file.path())?;
+        if content.trim().is_empty() {
+            continue; // Skip empty files
+        }
         let mut heap: TaskHeap = content.parse()?;
         heap.set_name(
             file.file_name()
@@ -127,7 +86,10 @@ pub fn read_meta_file(heapmap: &HeapMap) -> Result<Option<TaskID>, HeapError> {
     let db_path = get_db_path();
     let meta_file = fs::OpenOptions::new()
         .read(true)
-        .open(db_path.join("meta.csv"))?;
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(db_path.join("meta.dbsv"))?;
     let mut reader = BufReader::new(meta_file).lines();
     if let Some(Ok(line)) = reader.next()
         && line != VOID
