@@ -1,9 +1,9 @@
-use crate::commands::{Command, Options};
+use crate::commands::{Command, Options, print_help};
 use crate::error::HeapError;
 use crate::heap::{HeapBuilder, TaskHeap};
 use crate::io::{
-    get_yes_no, print_all_tasks, print_all_tasks_flat, print_heaps_only, print_help,
-    print_single_heap, print_tasks_standalone,
+    get_yes_no, print_all_tasks, print_all_tasks_flat, print_heaps_only, print_single_heap,
+    print_tasks_standalone,
 };
 use crate::task::{Task, TaskBuilder};
 use crate::utils::{
@@ -44,24 +44,17 @@ fn ignore_options(options: PeekIntoIter<Options>) {
         println!("Ignoring options: \"{}\"", option_string);
     }
 }
-fn get_tag_and_staged(
-    command: &Command,
-    options: &mut PeekIntoIter<Options>,
-) -> (Vec<String>, bool) {
+fn get_tags(command: &Command, options: &mut PeekIntoIter<Options>) -> Vec<String> {
     let mut tags_vec = Vec::new();
-    let mut is_staged = false;
     while let Some(option) = options.next_if(|opt| opt.is_valid_for(command)) {
         match option {
             Tags(tags) => {
                 tags_vec = tags;
             }
-            Staged => {
-                is_staged = true;
-            }
             _ => unreachable!(),
         }
     }
-    (tags_vec, is_staged)
+    tags_vec
 }
 fn build_heap(
     name: impl Into<String>,
@@ -109,8 +102,8 @@ fn build_task(
 fn edit_heap(heap: &mut TaskHeap, options_iter: &mut PeekIntoIter<Options>, command: &Command) {
     while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(command)) {
         match qualifier {
-            Name(name) => {
-                heap.set_name(name);
+            Name(_) => {
+                println!("Changing heap name not currently supported.");
             }
             Description(desc) => {
                 println!(
@@ -147,6 +140,9 @@ fn edit_task(task: &mut Task, options_iter: &mut PeekIntoIter<Options>, command:
             }
             Weight(weight_str) => {
                 task.set_weight(weight_str);
+            }
+            Untag(_) | Tags(_) => {
+                println!("Tasks cannot have tags.");
             }
             //Cannot be a non-qualifier
             _ => unreachable!(),
@@ -342,7 +338,7 @@ pub fn run_action(
             let staged_tasks: Vec<&Task> = heapmap
                 .values()
                 .filter(|heap| !heap.is_empty())
-                .flat_map(|heap| heap.get_staged_tasks())
+                .flat_map(|heap| heap.get_all_tasks())
                 .collect();
             print_tasks_standalone(staged_tasks, true, &mut output)?;
         }
@@ -386,25 +382,22 @@ pub fn run_action(
         }
         List(ref heap_name_opt) => {
             //Either list all heaps with their tasks or a single heap
-            let (tags, is_staged) = get_tag_and_staged(&command, &mut options_iter);
+            let tags = get_tags(&command, &mut options_iter);
             if let Some(heap_name) = heap_name_opt {
                 let heap = get_heap_from_arg(heap_name, heapmap)?;
-                print_single_heap(heap, is_staged);
+                print_single_heap(heap, false);
             } else {
-                print_all_tasks(heapmap, is_staged, &tags);
+                print_all_tasks(heapmap, false, &tags);
             }
         }
         FlatList => {
             //Either list all heaps with their tasks or a single heap
-            let (tags, is_staged) = get_tag_and_staged(&command, &mut options_iter);
-            print_all_tasks_flat(heapmap, is_staged, &tags)?;
+            let tags = get_tags(&command, &mut options_iter);
+            print_all_tasks_flat(heapmap, false, &tags)?;
         }
         Heaps => {
             //Print only heap headers and staged
-            let tags = match options_iter.next().unwrap_or(Tags(vec![])) {
-                Tags(t) => t,
-                _ => vec![],
-            };
+            let tags = get_tags(&command, &mut options_iter);
             print_heaps_only(heapmap, &tags);
         }
         Help => {

@@ -1,6 +1,9 @@
 use crate::action::Action;
 use crate::error::HeapError;
 use crate::utils::{self, NumOrStr, Weight, get_description, get_heap_and_task, get_name};
+use terminal_size::{Width, terminal_size};
+use textwrap::wrap;
+
 const MK_HEAP_CMD: &str = "create";
 const RM_HEAP_CMD: &str = "destroy";
 const PUSH_TASK_CMD: &str = "push";
@@ -59,7 +62,6 @@ pub enum Options {
     Weight(Weight),
     Tags(Vec<String>),
     Untag(Vec<String>),
-    Staged,
 }
 impl Options {
     pub fn is_valid_for(&self, command: &Command) -> bool {
@@ -87,8 +89,8 @@ impl Options {
             ) => true,
 
             //List accepts tag and weight (for now equal, but <> in future)
-            (Command::List(_), Self::Tags(_) | Self::Staged) => true,
-            (Command::FlatList, Self::Tags(_) | Self::Staged) => true,
+            (Command::List(_), Self::Tags(_)) => true,
+            (Command::FlatList, Self::Tags(_)) => true,
             // Default to false for everything else
             _ => false,
         }
@@ -394,7 +396,6 @@ pub fn parse_command<'a>(mut args_iterator: utils::ArgsIter) -> Result<Action<'a
                 };
                 Options::Weight(contents.parse()?)
             }
-            STAGED_OPT1 | STAGED_OPT2 => Options::Staged,
             unknown_opt => {
                 println!("{unknown_opt} ignored, it is not an argument or option.");
                 continue;
