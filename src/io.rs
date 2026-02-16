@@ -53,6 +53,7 @@ pub fn write_task_heap(heapmap: HeapMap) -> std::io::Result<()> {
     let db_path = get_db_path();
     for heap in heapmap.values() {
         let db_file: fs::File = fs::OpenOptions::new()
+            .write(true)
             .create(true)
             .truncate(true)
             .open(db_path.join(format!("{}.dbsv", heap.get_name())))?;
@@ -91,9 +92,15 @@ pub fn read_meta_file(heapmap: &HeapMap) -> Result<Option<TaskID>, HeapError> {
         .truncate(false)
         .open(db_path.join("meta.dbsv"))?;
     let mut reader = BufReader::new(meta_file).lines();
-    if let Some(Ok(line)) = reader.next()
-        && line != VOID
-    {
+    if let Some(Ok(line)) = reader.next() {
+        if line == VOID || line.is_empty() {
+            let task_ref: Option<TaskID> = heapmap
+                .iter()
+                .flat_map(|stack| stack.1.get_tasks_iter())
+                .find(|task| task.is_in_progress())
+                .map(|opt| (opt.get_heap_name().to_owned(), opt.get_name().to_owned()));
+            return Ok(task_ref);
+        }
         let mut parts = line.splitn(2, ".");
         let heap_name = parts
             .next()
