@@ -35,9 +35,6 @@ fn ignore_options(options: PeekIntoIter<Options>) {
             Untag(tags) => {
                 option_string.push_str(&format!("Untag(s): {:?}; ", tags));
             }
-            Staged => {
-                option_string.push_str("-s; ");
-            }
         }
     }
     if !option_string.is_empty() {
@@ -124,8 +121,6 @@ fn edit_heap(heap: &mut TaskHeap, options_iter: &mut PeekIntoIter<Options>, comm
                     heap.remove_tag(tag);
                 }
             }
-            //Cannot be a non-qualifier
-            _ => unreachable!(),
         };
     }
 }
@@ -144,8 +139,6 @@ fn edit_task(task: &mut Task, options_iter: &mut PeekIntoIter<Options>, command:
             Untag(_) | Tags(_) => {
                 println!("Tasks cannot have tags.");
             }
-            //Cannot be a non-qualifier
-            _ => unreachable!(),
         };
     }
 }
@@ -165,19 +158,13 @@ fn pop_task(
     let distribution = WeightedIndex::new(candidates.iter().map(|t| t.1))
         .map_err(|_| HeapError::InvalidWeights)?;
     let mut rng = thread_rng();
-    let (key, _) = candidates[distribution.sample(&mut rng)];
-    let key = key.to_owned();
-    // For simplicity, just pick the first heap that has tasks.
+    let key = candidates[distribution.sample(&mut rng)].0.to_owned();
+
     let heap = heapmap.get_mut(&key).ok_or(HeapError::HeapNotFound(key))?;
     let (staged_weights, staged_tasks): (Vec<Weight>, Vec<usize>) = heap.get_staged();
+    let dist = WeightedIndex::new(&staged_weights).map_err(|_| HeapError::InvalidWeights)?;
 
-    let selected_task: usize = if let Ok(dist) = WeightedIndex::new(&staged_weights) {
-        // We know this index is valid because dist was built from staged_weights
-        staged_tasks[dist.sample(&mut rng)]
-    } else {
-        heap.get_first_unfinished_task()
-            .ok_or(HeapError::SomeHeapsAreFinished)?
-    };
+    let selected_task: usize = staged_tasks[dist.sample(&mut rng)];
     let (_, selected_task) = heap
         .get_task_mut(&NumOrStr::Num(selected_task))
         .ok_or(HeapError::IndexError)?;
@@ -185,7 +172,7 @@ fn pop_task(
     {
         let stdout: std::io::Stdout = std::io::stdout();
         let mut handle = stdout.lock();
-        print_tasks_standalone(vec![selected_task], false, &mut handle)?;
+        print_tasks_standalone(vec![selected_task], &mut handle)?;
     }
     print!("Are you certain you can complete it? Are you a chicken or a penguin?");
     let input = get_yes_no()?;
@@ -243,7 +230,7 @@ pub fn run_action(
             }
             writeln!(&mut output, "Task created:")?;
             let task = build_task(task_name, heap_name, &mut options_iter, &command);
-            print_tasks_standalone(vec![&task], false, &mut output)?;
+            print_tasks_standalone(vec![&task], &mut output)?;
             heap.push(task);
         }
         PopTask(tag_list) => {
@@ -271,7 +258,7 @@ pub fn run_action(
             }
             let task = build_task(task_name, heap_name, &mut options_iter, &command);
             writeln!(&mut output, "Task created at index {index}:")?;
-            print_tasks_standalone(vec![&task], false, &mut output)?;
+            print_tasks_standalone(vec![&task], &mut output)?;
             heap.insert_task(task, index);
         }
         RemoveTask((heap_name, task_idx_name)) => {
@@ -306,7 +293,7 @@ pub fn run_action(
             let (_, task) = get_task_from_arg(heap, &task_idx_name)?;
             task.finish();
             let _ = active_task.take_if(|t| format!("{}.{}", t.0, t.1) == task.get_full_name());
-            print_tasks_standalone(vec![task], false, &mut output)?;
+            print_tasks_standalone(vec![task], &mut output)?;
         }
         StartTask((heap_name, task_idx_name)) => {
             if let Some(task) = active_task.as_ref() {
@@ -318,37 +305,45 @@ pub fn run_action(
             let (_, task) = get_task_from_arg(heap, &task_idx_name)?;
             task.in_progress();
             active_task.replace((task.get_heap_name().into(), task.get_name().into()));
-            print_tasks_standalone(vec![task], false, &mut output)?;
+            print_tasks_standalone(vec![task], &mut output)?;
         }
         StageTask((heap_name, task_idx_name)) => {
             let heap = get_heap_from_arg(&heap_name, heapmap)?;
             let (_, task) = get_task_from_arg(heap, &task_idx_name)?;
-            task.stage();
-            let _ = active_task.take_if(|t| format!("{}.{}", t.0, t.1) == task.get_full_name());
-            print_tasks_standalone(vec![task], false, &mut output)?;
+            if task.is_idle() {
+                task.stage();
+                print_tasks_standalone(vec![task], &mut output)?;
+            } else {
+                writeln!(&mut output, "Only idle tasks can be staged.",)?;
+            }
         }
-        UnstageTask((heap_name, task_idx_name)) => {
+        ResetTask((heap_name, task_idx_name)) => {
             let heap = get_heap_from_arg(&heap_name, heapmap)?;
             let (_, task) = get_task_from_arg(heap, &task_idx_name)?;
-            task.unstage();
+            task.reset_status();
             let _ = active_task.take_if(|t| format!("{}.{}", t.0, t.1) == task.get_full_name());
-            print_tasks_standalone(vec![task], false, &mut output)?;
+            print_tasks_standalone(vec![task], &mut output)?;
         }
         StagedTasks => {
             let staged_tasks: Vec<&Task> = heapmap
                 .values()
                 .filter(|heap| !heap.is_empty())
-                .flat_map(|heap| heap.get_all_tasks())
+                .flat_map(|heap| heap.get_staged_tasks())
                 .collect();
-            print_tasks_standalone(staged_tasks, true, &mut output)?;
+            print_tasks_standalone(staged_tasks, &mut output)?;
         }
         CurrentTasks => {
-            let current_tasks: Vec<&Task> = heapmap
-                .values()
-                .filter(|heap| !heap.is_empty())
-                .flat_map(|heap| heap.get_current_tasks())
-                .collect();
-            print_tasks_standalone(current_tasks, true, &mut output)?;
+            //let current_tasks: Vec<&Task> = heapmap
+            //    .values()
+            //    .filter(|heap| !heap.is_empty())
+            //    .flat_map(|heap| heap.get_current_tasks())
+            //    .collect();
+            if active_task.is_some() {
+                let task = get_task_from_id(heapmap, active_task.as_ref().unwrap())?;
+                print_tasks_standalone(vec![task], &mut output)?;
+            } else {
+                writeln!(&mut output, "No task is currently in progress.")?;
+            }
         }
         CompleteCurrent => {
             let Some(task) = active_task.take() else {

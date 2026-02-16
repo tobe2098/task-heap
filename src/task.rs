@@ -119,6 +119,9 @@ impl Task {
     pub fn is_staged(&self) -> bool {
         matches!(self.status, Staged)
     }
+    pub fn is_idle(&self) -> bool {
+        matches!(self.status, Idle)
+    }
     pub fn get_state(&self) -> TaskStatus {
         self.status.clone()
     }
@@ -134,7 +137,7 @@ impl Task {
         self.status = Staged;
         self
     }
-    pub fn unstage(&mut self) -> &mut Self {
+    pub fn reset_status(&mut self) -> &mut Self {
         self.status = Idle;
         self
     }

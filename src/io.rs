@@ -114,7 +114,7 @@ pub fn read_meta_file(heapmap: &HeapMap) -> Result<Option<TaskID>, HeapError> {
         Ok(None)
     }
 }
-fn print_task_table(tasks: &Vec<&Task>, staged_only: bool) {
+fn print_task_table(tasks: &Vec<&Task>) {
     let term_width = if let Some((Width(w), _)) = terminal_size() {
         w as usize
     } else {
@@ -145,9 +145,6 @@ fn print_task_table(tasks: &Vec<&Task>, staged_only: bool) {
     );
     for task in tasks {
         let state = task.get_state();
-        if staged_only && !matches!(state, TaskStatus::Staged | TaskStatus::InProgress) {
-            continue;
-        }
         let state_str = match state {
             TaskStatus::Idle => "IDLE",
             TaskStatus::Staged => "STAGED",
@@ -353,11 +350,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
 //    //rintln!("{}", "-".repeat(term_width));
 //}
 
-pub fn print_tasks_standalone<W: Write>(
-    tasks: Vec<&Task>,
-    staged_only: bool,
-    str: &mut W,
-) -> Result<(), HeapError> {
+pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Result<(), HeapError> {
     let term_width = if let Some((Width(w), _)) = terminal_size() {
         w as usize
     } else {
@@ -375,6 +368,10 @@ pub fn print_tasks_standalone<W: Write>(
     let w_name = w_name.max(5);
     let w_description = w_description.max(10);
     //println!("{}", "-".repeat(term_width));
+    if tasks.is_empty() {
+        writeln!(str, "No tasks to display.")?;
+        return Ok(());
+    }
     writeln!(
         str,
         "{:<n$} | {:<d$} | {:>w$} | {:<t$}",
@@ -389,20 +386,10 @@ pub fn print_tasks_standalone<W: Write>(
     )?;
     for task in tasks {
         let state = match task.get_state() {
-            TaskStatus::Idle => {
-                if staged_only {
-                    continue;
-                }
-                "IDLE"
-            }
+            TaskStatus::Idle => "IDLE",
             TaskStatus::Staged => "STAGED",
             TaskStatus::InProgress => "PROG",
-            TaskStatus::Finished => {
-                if staged_only {
-                    continue;
-                }
-                "DONE"
-            }
+            TaskStatus::Finished => "DONE",
         }; // Tags need to be sorted to look consistent (HashSet is random!)
         let state_lines = wrap(state, W_STATE);
         let full_name = task.get_full_name();
@@ -444,7 +431,12 @@ pub fn print_tasks_standalone<W: Write>(
 
 pub fn print_single_heap(heap: &TaskHeap, staged_only: bool) {
     print_heap_headers(vec![heap]);
-    print_task_table(&heap.get_all_tasks(), staged_only);
+    let tasks = if staged_only {
+        heap.get_staged_tasks()
+    } else {
+        heap.get_all_tasks()
+    };
+    print_task_table(&tasks);
 }
 
 pub fn print_all_tasks_flat(
@@ -459,13 +451,19 @@ pub fn print_all_tasks_flat(
     heaps.sort_by(|a, b| a.get_name().cmp(b.get_name()));
     let all_tasks = heaps
         .iter()
-        .flat_map(|heap| heap.get_all_tasks())
+        .flat_map(|heap| {
+            if staged_only {
+                heap.get_staged_tasks()
+            } else {
+                heap.get_all_tasks()
+            }
+        })
         .collect::<Vec<_>>();
-    print_heap_headers(heaps);
+    //print_heap_headers(heaps);
     {
         let stdout = std::io::stdout();
         let mut handle = stdout.lock();
-        print_tasks_standalone(all_tasks, staged_only, &mut handle)?;
+        print_tasks_standalone(all_tasks, &mut handle)?;
     }
     Ok(())
 }
