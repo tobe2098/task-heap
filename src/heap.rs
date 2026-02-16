@@ -112,12 +112,15 @@ impl TaskHeap {
             tasks
         }
     }
-    pub fn get_current_tasks(&self) -> Vec<&Task> {
-        self.tasks
-            .iter()
-            .filter(|task| task.is_in_progress())
-            .collect()
+    pub fn get_tasks_iter(&'_ self) -> std::collections::vec_deque::Iter<'_, Task> {
+        self.tasks.iter()
     }
+    //pub fn get_current_tasks(&self) -> Vec<&Task> {
+    //    self.tasks
+    //        .iter()
+    //        .filter(|task| task.is_in_progress())
+    //        .collect()
+    //}
     pub fn get_states_sum(&self) -> HashMap<TaskStatus, u32> {
         let mut hashmap = HashMap::new();
         for task in &self.tasks {
