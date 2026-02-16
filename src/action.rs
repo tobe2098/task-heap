@@ -1,4 +1,4 @@
-use crate::commands::{Command, Options, print_help};
+use crate::commands::{Command, Options, print_help, print_help_cmd};
 use crate::error::HeapError;
 use crate::heap::{HeapBuilder, TaskHeap};
 use crate::io::{
@@ -400,8 +400,12 @@ pub fn run_action(
             let tags = get_tags(&command, &mut options_iter);
             print_heaps_only(heapmap, &tags);
         }
-        Help => {
-            print_help();
+        Help(cmd_opt) => {
+            if let Some(cmd) = cmd_opt {
+                print_help_cmd(&cmd);
+            } else {
+                print_help();
+            }
         }
     };
     ignore_options(options_iter);
