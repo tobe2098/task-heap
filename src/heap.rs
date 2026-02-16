@@ -93,23 +93,24 @@ impl TaskHeap {
         None
     }
     pub fn get_staged(&self) -> (Vec<Weight>, Vec<usize>) {
-        self.tasks
+        self.get_staged_tasks()
             .iter()
             .enumerate()
-            .filter_map(|task| {
-                if task.1.is_staged() {
-                    Some((task.1.get_weight(), task.0))
-                } else {
-                    None
-                }
-            })
+            .map(|task| (task.1.get_weight(), task.0))
             .collect()
     }
     pub fn get_all_tasks(&self) -> Vec<&Task> {
         self.tasks.iter().collect()
     }
     pub fn get_staged_tasks(&self) -> Vec<&Task> {
-        self.tasks.iter().filter(|task| task.is_staged()).collect()
+        let tasks: Vec<&Task> = self.tasks.iter().filter(|task| task.is_staged()).collect();
+        if tasks.is_empty()
+            && let Some(first_unfinished) = self.get_first_unfinished_task()
+        {
+            vec![&self.tasks[first_unfinished]]
+        } else {
+            tasks
+        }
     }
     pub fn get_current_tasks(&self) -> Vec<&Task> {
         self.tasks
