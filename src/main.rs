@@ -24,21 +24,29 @@ fn main() -> Result<(), HeapError> {
     let action = parse_command(args_iterator)?;
     let mut heapmap = read_task_heap()?;
     let mut active_task = read_meta_file(&heapmap)?;
-    let result_messages = run_action(action, &mut heapmap, &mut active_task)?;
+    let result_messages = match run_action(action, &mut heapmap, &mut active_task) {
+        Ok(messages) => messages,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return Err(e);
+        }
+    };
     match write_meta_file(active_task) {
         Ok(_) => (),
         Err(e) => eprintln!(
-            "Warning: could not write meta file, some data may have been corrupted: {}",
+            "Error: could not write meta file, some data may have been corrupted: {}",
             e
         ),
     };
     match write_task_heap(heapmap) {
         Ok(_) => (),
-        Err(e) => eprintln!(
-            "Warning: could not write task heap file, some data may have been
-corrupted: {}",
-            e
-        ),
+        Err(e) => {
+            eprintln!(
+                "Error: could not write task heap file, some data may have been corrupted: {}",
+                e
+            );
+            return Err(HeapError::from(e));
+        }
     };
     std::io::stdout().write_all(&result_messages)?;
     Ok(())
