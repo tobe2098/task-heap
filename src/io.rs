@@ -77,7 +77,9 @@ pub fn read_task_heap() -> Result<HeapMap, HeapError> {
         heap.set_name(
             file.file_name()
                 .to_str()
-                .ok_or_else(|| HeapError::CorruptData(heap.get_name().to_owned()))?,
+                .and_then(|s| s.split_once("."))
+                .ok_or_else(|| HeapError::CorruptData(heap.get_name().to_owned()))?
+                .0,
         );
         heapmap.insert(heap.get_name().to_owned(), heap);
     }
