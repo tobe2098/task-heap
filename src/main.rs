@@ -17,37 +17,26 @@ mod utils;
 
 use std::{env, io::Write};
 
-fn main() -> Result<(), HeapError> {
+fn main_wrapper() -> Result<(), HeapError> {
     let args: Vec<String> = env::args().collect();
     let args_iterator = args.into_iter().skip(1).peekable();
 
     let action = parse_command(args_iterator)?;
     let mut heapmap = read_task_heap()?;
     let mut active_task = read_meta_file(&heapmap)?;
-    let result_messages = match run_action(action, &mut heapmap, &mut active_task) {
-        Ok(messages) => messages,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            return Err(e);
-        }
-    };
-    match write_meta_file(active_task) {
-        Ok(_) => (),
-        Err(e) => eprintln!(
-            "Error: could not write meta file, some data may have been corrupted: {}",
-            e
-        ),
-    };
-    match write_task_heap(heapmap) {
-        Ok(_) => (),
-        Err(e) => {
-            eprintln!(
-                "Error: could not write task heap file, some data may have been corrupted: {}",
-                e
-            );
-            return Err(HeapError::from(e));
-        }
-    };
+    let result_messages = run_action(action, &mut heapmap, &mut active_task)?;
+    write_meta_file(active_task)?;
+    write_task_heap(heapmap)?;
     std::io::stdout().write_all(&result_messages)?;
     Ok(())
+}
+
+fn main() {
+    match main_wrapper() {
+        Ok(()) => (),
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
