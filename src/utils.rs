@@ -134,7 +134,7 @@ fn cannot_have_separator(argument: Option<String>) -> Result<Option<String>, Hea
 fn is_filename_safe(argument: Option<String>) -> Result<Option<String>, HeapError> {
     match argument {
         Some(argument) => {
-            if !argument
+            if argument
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
             {
