@@ -40,7 +40,7 @@ Commands for managing task categories.
 
 * `create <stack_name> [options]`
 * Creates a new task stack.
-* *Options:* `Weight`, `Tags`.
+* *Options:* `Weight`, `Tag`.
 
 
 * `destroy <stack_name>`
@@ -49,12 +49,12 @@ Commands for managing task categories.
 
 * `stacks [options]`
 * Lists all available stacks.
-* *Options:* Filter by `Tags`.
+* *Options:* Filter by `Tag`.
 
 
 * `edit <stack_name> [options]`
 * Modifies stack properties.
-* *Options:* `Weight`, `Tags`, `Untag`.
+* *Options:* `Weight`, `Tag`, `Untag`.
 
 
 
@@ -143,7 +143,7 @@ Commands to progress through your work.
 When running commands, you can use the following qualifiers:
 
 * **Weight:** Sets the probability weight (e.g., `-w 10`).
-* **Tags:** Adds tags for filtering (e.g., `--tags work`, `--tags work,urgent`).
+* **Tag:** Adds tags for filtering (e.g., `--tag work`, `--tag work,urgent`).
 * **Untag:** Removes tags (e.g., `--untag work`).
 * **Description:** Adds a text description to a task (e.g., `-d "Fix the login bug"`).
 
@@ -151,15 +151,63 @@ When running commands, you can use the following qualifiers:
 
 ### Creating Stacks and Tasks
 
-[Examples here]
+```
+~$ task-heap create deliverable
+Task heap deliverable created.
+```
+```
+~$ task-heap push deliverable.presentation -d "Make presentation about deliverable"
+Task created:
+STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE   
+deliverable.presentation | Make presentation about deliverable  |      100 | IDLE    
+```
+```
+~$ task-heap insert deliverable.0 start -d "Research deliverable" -w 200
+Task created at index 0:
+STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE   
+deliverable.start        | Research deliverable                 |      200 | IDLE    
+```
+```
+~$ task-heap edit deliverable --tag work
+Heap edited.
+```
+```
+$ task-heap list
+STACK                       |   WEIGHT | TAGS                        | I/S/P/D
+deliverable                 | 100      |                       work | 2/0/0/0
+TASK               | DESCRIPTION                                |   WEIGHT | STATE
+start              | Research deliverable                       |      200 | IDLE
+presentation       | Make presentation about deliverable        |      100 | IDLE
+```
+<!--### working with Weights-->
 
-### working with Weights
+### Popping tasks
 
-[Examples here]
-
-### The Pop Workflow
-
-[Examples here]
+```
+ubuntu@snapb:~$ task-heap stage deliverable.start
+STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
+deliverable.start        | Research deliverable                 |      200 | STAGED
+~$ task-heap pop
+The selected task for completion is:
+STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
+deliverable.start        | Research deliverable                 |      200 | STAGED
+Are you certain you can complete it? Are you a chicken or a penguin? [y/n]:y
+Task is in progress. Penguin wishes you good luck!
+```
+```
+~$ task-heap reset deliverable.start
+STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
+deliverable.start        | Research deliverable                 |      200 | IDLE
+~$ task-heap stage deliverable.presentation
+STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
+deliverable.presentation | Make presentation about deliverable  |      100 | STAGED
+~$ task-heap pop
+The selected task for completion is:
+STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
+deliverable.start        | Research deliverable                 |      200 | IDLE
+Are you certain you can complete it? Are you a chicken or a penguin? [y/n]:y
+Task is in progress. Penguin wishes you good luck!
+```
 
 ## License
 
