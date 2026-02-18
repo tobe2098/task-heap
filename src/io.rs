@@ -6,11 +6,14 @@ use crate::{
 };
 use directories::ProjectDirs;
 use std::{
-    env, fs,
+    env,
+    ffi::OsStr,
+    fs,
     io::{BufRead, BufReader, Write, stdin, stdout},
     path::PathBuf,
     str::FromStr,
 };
+const EXTENSION: &str = "dbsv";
 use terminal_size::{Width, terminal_size};
 use textwrap::wrap;
 const VOID: &str = "$VOID$";
@@ -35,13 +38,21 @@ fn get_db_path() -> PathBuf {
         }
     }
 }
+pub fn delete_stack_file(stack_name: &str) -> std::io::Result<()> {
+    let db_path = get_db_path();
+    let file_path = db_path.join(format!("{}.{}", stack_name, EXTENSION));
+    if file_path.exists() {
+        fs::remove_file(&file_path)?;
+    }
+    Ok(())
+}
 pub fn write_meta_file(active_task: Option<TaskID>) -> std::io::Result<()> {
     let db_path = get_db_path();
     let meta_file = fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(db_path.join("meta.dbsv"))?;
+        .open(db_path.join(format!("meta.{}", EXTENSION)))?;
     if let Some(active_task) = active_task {
         writeln!(&meta_file, "{}.{}", active_task.0, active_task.1)?;
     } else {
@@ -56,7 +67,7 @@ pub fn write_task_heap(heapmap: HeapMap) -> std::io::Result<()> {
             .write(true)
             .create(true)
             .truncate(true)
-            .open(db_path.join(format!("{}.dbsv", heap.get_name())))?;
+            .open(db_path.join(format!("{}.{}", heap.get_name(), EXTENSION)))?;
         writeln!(&db_file, "{}", heap)?;
     }
     Ok(())
@@ -65,9 +76,10 @@ pub fn read_task_heap() -> Result<HeapMap, HeapError> {
     // Your code here
     let db_path = get_db_path();
     let mut heapmap = HeapMap::new();
-    for file in fs::read_dir(db_path)?
-        .filter(|name| name.as_ref().is_ok_and(|v| v.file_name() != "meta.dbsv"))
-    {
+    for file in fs::read_dir(db_path)?.filter(|name| {
+        name.as_ref()
+            .is_ok_and(|v| v.file_name() != OsStr::new(&format!("meta.{}", EXTENSION)))
+    }) {
         let file = file?;
         let content = fs::read_to_string(file.path())?;
         if content.trim().is_empty() {
@@ -92,7 +104,7 @@ pub fn read_meta_file(heapmap: &HeapMap) -> Result<Option<TaskID>, HeapError> {
         .write(true)
         .create(true)
         .truncate(false)
-        .open(db_path.join("meta.dbsv"))?;
+        .open(db_path.join(format!("meta.{}", EXTENSION)))?;
     let mut reader = BufReader::new(meta_file).lines();
     if let Some(Ok(line)) = reader.next() {
         if line == VOID || line.is_empty() {
@@ -124,6 +136,10 @@ pub fn read_meta_file(heapmap: &HeapMap) -> Result<Option<TaskID>, HeapError> {
     }
 }
 fn print_task_table(tasks: &Vec<&Task>) {
+    if tasks.is_empty() {
+        println!("No tasks to display.");
+        return;
+    }
     let term_width = if let Some((Width(w), _)) = terminal_size() {
         w as usize
     } else {
@@ -197,6 +213,10 @@ fn print_task_table(tasks: &Vec<&Task>) {
 }
 
 fn print_heap_headers(heaps: Vec<&TaskHeap>) {
+    if heaps.is_empty() {
+        println!("No task stacks to display.");
+        return;
+    }
     let term_width = if let Some((Width(w), _)) = terminal_size() {
         w as usize
     } else {
@@ -216,7 +236,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
     //println!("+{}", "-".repeat(term_width - 5));
     println!(
         "{:<n$} | {:>w$} | {:<t$} | {:<s$}",
-        "HEAP",
+        "STACK",
         "WEIGHT",
         "TAGS",
         "I/S/P/D",
@@ -360,6 +380,10 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
 //}
 
 pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Result<(), HeapError> {
+    if tasks.is_empty() {
+        writeln!(str, "No tasks to display.")?;
+        return Ok(());
+    }
     let term_width = if let Some((Width(w), _)) = terminal_size() {
         w as usize
     } else {
@@ -377,14 +401,10 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
     let w_name = w_name.max(5);
     let w_description = w_description.max(10);
     //println!("{}", "-".repeat(term_width));
-    if tasks.is_empty() {
-        writeln!(str, "No tasks to display.")?;
-        return Ok(());
-    }
     writeln!(
         str,
         "{:<n$} | {:<d$} | {:>w$} | {:<t$}",
-        "HEAP.TASK",
+        "STACK.TASK",
         "DESCRIPTION",
         "WEIGHT",
         "STATE",
@@ -478,13 +498,16 @@ pub fn print_all_tasks_flat(
 }
 
 pub fn print_all_tasks(heapmap: &HeapMap, staged_only: bool, tags: &[String]) {
-    let mut heaps = heapmap
+    let mut stacks = heapmap
         .values()
         .filter(|heap| heap.has_tags(tags) && (!staged_only || !heap.is_all_complete()))
         .collect::<Vec<_>>();
-    heaps.sort_by(|a, b| a.get_name().cmp(b.get_name()));
-
-    for heap in heaps {
+    stacks.sort_by(|a, b| a.get_name().cmp(b.get_name()));
+    if stacks.is_empty() {
+        println!("No task stacks to display.");
+        return;
+    }
+    for heap in stacks {
         print_single_heap(heap, staged_only);
     }
 }
@@ -499,7 +522,7 @@ pub fn print_heaps_only(heapmap: &HeapMap, tags: &[String]) {
 }
 
 pub fn get_yes_no() -> Result<String, HeapError> {
-    print!("[y/n]: ");
+    print!(" [y/n]:");
     stdout().flush().unwrap(); //Flush so prompt appears before user input.
 
     let mut input = String::new();

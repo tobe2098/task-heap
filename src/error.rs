@@ -44,11 +44,11 @@ impl fmt::Display for HeapError {
             ArgumentCannotHaveWhitespace => write!(f, "The argument cannot have whitespace"),
             InvalidHeapName => write!(
                 f,
-                "A heap must only contain alphanumeric and -_ characters."
+                "A task stack must only contain alphanumeric and -_ characters."
             ),
             InvalidWeights => write!(
                 f,
-                "The sum of weights in heaps or staged tasks cannot be zero"
+                "The sum of weights in stacks or staged tasks cannot be zero"
             ),
             ArgumentCannotHaveSeparator => {
                 write!(
@@ -61,11 +61,11 @@ impl fmt::Display for HeapError {
             TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or contain whitespace."),
             TaskNotFound(name) => writeln!(f, "Task \"{name}\" was not found."),
             TaskAlreadyExists(name) => writeln!(f, "Task \"{name}\" already exists."),
-            NoHeapsFound => writeln!(f, "No heaps were found."),
+            NoHeapsFound => writeln!(f, "No task stacks were found."),
             //SomeHeapsAreFinished => writeln!(f, "Some heaps only have finished tasks."),
             IndexError => writeln!(f, "Index was out of bounds."),
-            HeapNotFound(heap_name) => writeln!(f, "Heap {heap_name} not found."),
-            HeapAlreadyExists(heap_name) => writeln!(f, "Heap {heap_name} already exists."),
+            HeapNotFound(heap_name) => writeln!(f, "Task stack {heap_name} not found."),
+            HeapAlreadyExists(heap_name) => writeln!(f, "Stack {heap_name} already exists."),
             ATaskIsAlreadyInProgress(task_name) => {
                 writeln!(
                     f,
