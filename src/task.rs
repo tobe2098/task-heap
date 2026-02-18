@@ -205,10 +205,10 @@ impl From<TaskBuilder> for Task {
     fn from(builder: TaskBuilder) -> Self {
         Task::new(
             builder.name,
+            builder.heap_name,
             builder
                 .description
                 .unwrap_or("Empty description.".to_owned()),
-            builder.heap_name,
             builder.weight.unwrap_or(DEFAULT_WEIGHT),
             Idle,
         )
