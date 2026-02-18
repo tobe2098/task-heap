@@ -32,6 +32,7 @@ const WEIGHT_OPT: &str = "--weight";
 const WEIGHT_OPT2: &str = "-w";
 const TAG_OPT: &str = "--tag";
 const UNTAG_OPT: &str = "--untag";
+
 pub fn print_help_cmd(command: &str) {
     const WEIGHT_DESC: &str = "Numerical weight used to modify the likelihood of selection on 'pop'. Default weight is 100.";
     const TAGS_ADD_DESC: &str = "Add comma separated tags to the heap for filtering.";

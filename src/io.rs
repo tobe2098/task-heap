@@ -13,10 +13,12 @@ use std::{
     path::PathBuf,
     str::FromStr,
 };
-const EXTENSION: &str = "dbsv";
 use terminal_size::{Width, terminal_size};
 use textwrap::wrap;
+
+const EXTENSION: &str = "dbsv";
 const VOID: &str = "$VOID$";
+
 fn get_db_path() -> PathBuf {
     match env::var("TASK_HEAP_DBPATH") {
         Ok(path) => PathBuf::from_str(&path).unwrap(),

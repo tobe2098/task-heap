@@ -2,8 +2,8 @@ use core::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-use crate::utils::{SEPARATOR, Weight};
-use crate::{HeapError, utils::DEFAULT_WEIGHT};
+use crate::error::HeapError;
+use crate::utils::{DEFAULT_WEIGHT, SEPARATOR, Weight};
 
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub enum TaskStatus {
