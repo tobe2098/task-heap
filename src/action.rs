@@ -2,8 +2,8 @@ use crate::commands::{Command, Options, print_help, print_help_cmd};
 use crate::error::HeapError;
 use crate::heap::{HeapBuilder, TaskHeap};
 use crate::io::{
-    get_yes_no, print_all_tasks, print_all_tasks_flat, print_heaps_only, print_single_heap,
-    print_tasks_standalone,
+    delete_stack_file, get_yes_no, print_all_tasks, print_all_tasks_flat, print_heaps_only,
+    print_single_heap, print_tasks_standalone,
 };
 use crate::task::{Task, TaskBuilder};
 use crate::utils::{
@@ -205,22 +205,21 @@ pub fn run_action(
             writeln!(&mut output, "Task heap {} created.", heap.get_name())?;
             heapmap.insert(heap.get_name().to_owned(), heap);
         }
-        DestroyHeap(heap_name) => {
-            print!("Are you sure you want to delete {heap_name}?");
-            let input = get_yes_no()?;
-            if input.to_lowercase() == "y" {
-                writeln!(&mut output, "Task heap deleted.")?;
-            } else {
-                return Err(HeapError::UserSaidNo);
-            }
-
-            match heapmap.remove(&heap_name) {
-                Some(heap) => {
-                    let _ = active_task.take_if(|t| t.0 == heap.get_name());
+        DestroyHeap(heap_name) => match heapmap.remove(&heap_name) {
+            Some(heap) => {
+                print!("Are you sure you want to delete {heap_name}?");
+                let input = get_yes_no()?;
+                if input.to_lowercase() == "y" {
+                    writeln!(&mut output, "Task heap deleted.")?;
+                } else {
+                    heapmap.insert(heap_name.to_owned(), heap);
+                    return Err(HeapError::UserSaidNo);
                 }
-                None => return Err(HeapError::HeapNotFound(heap_name.to_owned())),
+                let _ = active_task.take_if(|t| t.0 == heap.get_name());
+                delete_stack_file(heap.get_name())?;
             }
-        }
+            None => return Err(HeapError::HeapNotFound(heap_name.to_owned())),
+        },
         PushTask((ref heap_name, ref task_name)) => {
             let heap = get_heap_from_arg(heap_name, heapmap)?;
             if heap.get_task(&NumOrStr::Str(task_name)).is_some() {

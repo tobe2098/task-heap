@@ -414,7 +414,7 @@ pub fn print_help() {
     let w_description = (term_width as f64 * (1. - RATIO_NAME_DESC)) as usize;
 
     let lines = vec![
-        "Usage: task-heap [command] heap(.task/index) [--options] args".to_owned(),
+        "Usage: task-heap [command] <heap>(.<task/index>) [--options]".to_owned(),
         "task-heap v{VERSION} helps organize your tasks and choose what to do next from the CLI."
             .replace("{VERSION}", VERSION),
     ];
