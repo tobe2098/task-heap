@@ -16,6 +16,8 @@ To install directly:
 cargo install task-heap
 ```
 
+Add zsh completions to your shell by copying `completions/_task-heap` to your `fpath`.
+
 ## Core Concepts
 
 ### Stacks and Weights
