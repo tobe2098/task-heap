@@ -35,7 +35,7 @@ fn main() {
     match main_wrapper() {
         Ok(()) => (),
         Err(e) => {
-            eprintln!("{}", e);
+            eprint!("{}", e);
             std::process::exit(1);
         }
     }
