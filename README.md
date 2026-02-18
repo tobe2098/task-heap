@@ -1,181 +1,166 @@
-# Task Heap
+# task-heap
 
-**Task Heap** is a command-line interface (CLI) task manager written in Rust. Unlike standard to-do lists, Task Heap is designed to cure "analysis paralysis." Instead of manually picking a task, you assign tasks a **weight**, and the program randomly "pops" a task for you to complete based on those weights.
+`task-heap` is a command-line task management tool written in Rust designed to help you prioritize and select tasks using a weighted probabilistic system. Unlike standard todo lists that are static, `task-heap` allows you to assign weights to task stacks (categories) and individual tasks to randomize your workflow based on priority.
 
-## Features
-
-* **Weighted Random Selection:** Assign importance (weight) to tasks. Higher weight = higher probability of being selected.
-* **Gamified Workflow:** The "Pop" mechanic challenges you to complete the task immediately (Penguin) or back out (Chicken).
-* **Tagging System:** Organize tasks with tags and filter the "Pop" selection by specific tags.
-* **Persistent Storage:** Automatically saves and loads your heap (currently via local file I/O).
-* **Detailed Metadata:** Tasks support names, descriptions, weights, and arbitrary tags.
+It features a "commit" mechanic (Chicken vs. Penguin) to encourage accountability when a task is selected.
 
 ## Installation
 
-Ensure you have [Rust and Cargo installed](https://www.rust-lang.org/tools/install).
-
-1. Download the desired version's [tarball](https://github.com/tobe2098/task-heap/releases).
-
-2. Unpack the tarball:
+To install the package from the tarball:
 ```bash
-tar -xvf task-heap-version.tar.gz
-cd task-heap
-
+cargo install --path .
 ```
 
-
-2. Build the project:
+To install directly:
 ```bash
-cargo build --release
-
+cargo install task-heap
 ```
 
+## Core Concepts
 
-3. Run the binary:
-```bash
-./target/release/task-heap --help
+### Stacks and Weights
 
-```
+A **task stack** is a stack of tasks (like a project or topic). Both Stacks and Tasks have **Weights**.
 
-You can add the binary to a path in PATH or add the folder to PATH to use without relative paths.
+* **Stack Weight:** Determines how likely the tool is to select a task from this category.
+* **Task Weight:** Determines how likely a specific task is to be chosen compared to others in the same stack.
 
----
+### The Workflow
+
+1. **Push** tasks into Task Stacks.
+2. **Stage** the tasks you are willing to do now.
+3. **Pop** a task. The tool rolls the dice (respecting your weights) and presents a task.
+4. **Commit:** You must confirm if you will do the task (Penguin) or back out (Chicken).
 
 ## Usage
 
-The general syntax for Task Heap is:
+### Stack Management
 
-```bash
-task-heap [ACTION] [OPTIONS/QUALIFIERS]
+Commands for managing task categories.
 
-```
+* `create <stack_name> [options]`
+* Creates a new task stack.
+* *Options:* `Weight`, `Tags`.
 
-### 1. Adding Tasks (`--push` / `-i`)
 
-Push a new task onto the heap. You can chain qualifiers like description, weight, and tags immediately after the push command.
+* `destroy <stack_name>`
+* Deletes a stack and all its contents (requires confirmation).
 
-**Arguments:** `Task Name`
 
-```bash
-# Simple push
-task-heap -i Clean the Garage
+* `stacks [options]`
+* Lists all available stacks.
+* *Options:* Filter by `Tags`.
 
-# Detailed push with weight (priority), description, and tags
-task-heap -i Finish Rust Project -w 50 -p Write the README and fix bugs -at coding,school
 
-```
+* `edit <stack_name> [options]`
+* Modifies stack properties.
+* *Options:* `Weight`, `Tags`, `Untag`.
 
-### 2. Popping Tasks (`--pop` / `-o`)
 
-This is the core feature. The program selects a task for you.
 
-* **How it works:** It creates a weighted distribution of all tasks.
-* **Filtering:** You can limit the selection pool by providing tags.
+### Task Management
 
-**The Penguin vs. Chicken Mechanic:**
-Once a task is selected, you are prompted:
+Commands for adding and modifying individual tasks.
 
-> *Are you certain you can complete it? Are you a chicken or a penguin?*
+* `push <stack_name>.<task_name|index> [options]`
+* Adds a new task to a specific stack.
+* *Options:* `Description`, `Weight`.
 
-* **Yes (y):** You are a **Penguin**. You accept the challenge, and the task is **removed** (completed) from the heap.
-* **No (n):** You are a **Chicken**. The task remains in the heap to be picked another day.
 
-```bash
-# Pop any task from the heap
-task-heap -o
+* `insert <stack_name>.<index> <task_name>  [options]`
+* Inserts a task at a specific position in the list.
 
-# Pop a task only from the coding category
-task-heap -o -at coding
 
-```
+* `remove <stack_name>.<task_name|index>`
+* Deletes a specific task.
 
-### 3. Listing Tasks (`--list` / `-l`)
 
-View all current tasks or filter them by tag.
+* `edit <stack_name>.<task_name|index> [options]`
+* Edits an existing task.
+* *Options:* `Name`, `Description`, `Weight`.
 
-```bash
-# List all
-task-heap -l
 
-# List only tasks tagged 'household'
-task-heap -l -at household
 
-```
+### Workflow & Execution
 
-### 4. Editing Tasks (`--edit` / `-e`)
+Commands to progress through your work.
 
-Modify an existing task. You identify the task by its original name, then apply qualifiers to change it.
+* `stage <stack_name>.<task_name|index>`
+* Marks an idle task as "Staged" (ready to be picked).
 
-**Arguments:** `Original Task Name`
 
-```bash
-# Change weight and add a tag
-task-heap -e Clean the Garage -w 100 -at urgent
+* `pop [tags]`
+* Randomly selects a task from your staged tasks based on weights. If a stack has no staged tasks, the first task in the stack is considered as staged.
+* *Note:* Can filter candidates by Tags.
 
-# Rename a task
-task-heap -e Clean the Garage -n Clean the Entire House
 
-# Remove specific tags
-task-heap -e Finish Rust Project -ut school
+* `start <stack_name>.<task_name|index>`
+* Manually marks a specific task as "In Progress" (bypassing the random pop). Only one task can be "In Progress"!
 
-```
 
-### 5. Deleting Tasks (`--delete` / `-d`)
+* `finish <stack_name>.<task_name|index>`
+* Marks a specific task as Done.
 
-Permanently remove a task or a group of tasks.
 
-```bash
-# Delete a specific task by name
-task-heap -d Old Task
+* `complete`
+* Marks the currently active task as Done.
 
-# Delete ALL tasks that have a specific tag
-task-heap -d -at deprecated
 
-```
+* `current`
+* Displays the task currently in progress.
 
-### 6. Reset (`--reset` / `-r`)
 
-Deletes **all** tasks from the heap. Requires confirmation.
+* `staged`
+* Lists all tasks currently staged or considered staged across all stacks.
 
-```bash
-task-heap -r
 
-```
+* `reset <stack_name>.<task_name|index>`
+* Resets a task's status back to Idle.
 
-### 7. Chain commands!
 
-You can chain commands for ease of use. All operations will be cancelled if there is at least one error, so the task heap's state will never be corrupted.
 
-```
-task-heap -i task1 -i task2 -p sth -w 2 -i task3 -o -l
-```
+### Maintenance & Views
 
----
+* `list [stack_name]`
+* Lists tasks. If a stack is specified, lists only that stack. Otherwise, lists all.
 
-## Command Reference
 
-| Flag | Long Flag | Description |
-| --- | --- | --- |
-| **Actions** |  |  |
-| `-i` | `--push` | Insert a new task. |
-| `-o` | `--pop` | Select a task to do. |
-| `-d` | `--delete` | Delete a task or group of tasks. |
-| `-e` | `--edit` | Update task details. |
-| `-l` | `--list` | Display tasks. |
-| `-r` | `--reset` | Wipe the heap. |
-| `-ct` | `--clear-tags` | Remove all tags from a specific task. |
-| **Qualifiers** |  |  |
-| `-n` | `--name` | Specify a new name (used in edit). |
-| `-p` | `--description` | Add/Change description. |
-| `-w` | `--weight` | Set integer weight (probability). |
-| `-at` | `--tag` | Add tags (comma-separated). |
-| `-ut` | `--untag` | Remove tags (comma-separated). |
+* `tasks`
+* Prints a list of all tasks across all stacks.
 
----
 
-## Using different storage locations
+* `clear-done <stack_name>`
+* Removes all completed tasks from a stack.
 
-By default, `task-heap` stores the task data on a default folder depending on your OS. If you want to override this to use, access or share your task heap, you can define the environment variable TASK_HEAP_DBPATH, for example:
-```
-TASK_HEAP_DBPATH=$HOME/Dropbox task-heap --push
-```
+
+* `clear-all <stack_name>`
+* Removes **all** tasks from a stack.
+
+
+
+## Options & Flags
+
+When running commands, you can use the following qualifiers:
+
+* **Weight:** Sets the probability weight (e.g., `-w 10`).
+* **Tags:** Adds tags for filtering (e.g., `--tags work`, `--tags work,urgent`).
+* **Untag:** Removes tags (e.g., `--untag work`).
+* **Description:** Adds a text description to a task (e.g., `-d "Fix the login bug"`).
+
+## Examples
+
+### Creating Stacks and Tasks
+
+[Examples here]
+
+### working with Weights
+
+[Examples here]
+
+### The Pop Workflow
+
+[Examples here]
+
+## License
+
+[GPL](./LICENSE)
