@@ -37,7 +37,7 @@ impl fmt::Display for HeapError {
                 write!(f, "Data row is corrupt: {str}")
             }
             //HeapError::CorruptKey(e) => write!(f, "Parsing Error: {}", e),
-            MissingCommand => write!(f, "No command was used"),
+            MissingCommand => write!(f, "No command was used."),
             UserSaidNo => write!(f, "You backed down."),
             UnknownCommand(str) => write!(f, "Unknown command: {str}"),
             MissingOption((arg, cmd)) => write!(f, "A {arg} is required for `{cmd}`."),
