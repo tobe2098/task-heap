@@ -1,0 +1,142 @@
+#compdef task-heap
+
+_task_heap() {
+    local context state state_descr line
+    typeset -A opt_args
+
+    # Check if command exists
+    if ! (( $+commands[task-heap] )); then
+        return 1
+    fi
+
+    _arguments -C \
+        '1: :_task_heap_commands' \
+        '*:: :->args'
+
+    case $state in
+        (args)
+            # Define common options
+            local -a opt_name opt_desc opt_weight opt_tag opt_untag
+            opt_name=({-n,--name}'[Change the task name]:name:_task_heap_names')
+            opt_desc=({-d,--description}'[Set the task description]:description:')
+            opt_weight=({-w,--weight}'[Numerical weight (default 100)]:weight:')
+            opt_tag=('--tag[Add comma separated tags]:tags:_task_heap_tags')
+            opt_untag=('--untag[Remove comma separated tags]:tags:_task_heap_tags')
+
+            # $line[1] is the subcommand
+            case $line[1] in
+                (create)
+                    _arguments ':heap name:_task_heap_heaps_new' $opt_weight ;;
+                (destroy|clear-done|clear-all|list)
+                    _arguments ':heap name:_task_heap_heaps' ;;
+                (push)
+                    _arguments ':stack.task:_task_heap_compound_new' $opt_desc $opt_weight ;;
+                (insert)
+                    _arguments ':stack.index:_task_heap_compound_index' ':new task name:' $opt_desc $opt_weight ;;
+                (remove|finish|start|stage|reset|edit)
+                    _arguments ':stack.task:_task_heap_compound_existing' $opt_name $opt_desc $opt_weight $opt_tag $opt_untag ;;
+                (pop)
+                    _arguments ':tags:_task_heap_tags' ;;
+                (help)
+                    _arguments ':command:_task_heap_commands' ;;
+                # Added missing handlers
+                (current|selected|complete|tasks|stacks)
+                    _nothing ;;
+            esac
+            ;;
+    esac
+}
+
+_task_heap_commands() {
+    local -a commands
+    commands=(
+        'create:Create an empty task stack'
+        'destroy:Destroy a task stack'
+        'push:Push a new task onto a stack'
+        'pop:Pop a task at random'
+        'insert:Insert a new task by index'
+        'remove:Delete a task'
+        'edit:Edit properties of a task or stack'
+        'finish:Set task status to done'
+        'start:Set task status to in progress'
+        'stage:Stage a task for selection'
+        'reset:Reset task status to idle'
+        'current:List the task currently in progress'
+        'selected:List staged tasks'
+        'complete:Complete the current task'
+        'clear-done:Erase all completed tasks in a stack'
+        'clear-all:Erase all tasks in a stack'
+        'list:List specific stack tasks'
+        'tasks:List all stacks and tasks'
+        'stacks:List all task stacks'
+        'help:Print help message'
+    )
+    _describe -t commands 'command' commands
+}
+
+# --- HELPER PARSERS ---
+
+__get_heaps_list() {
+    task-heap stacks 2>/dev/null | awk -F '|' 'NR>1 {gsub(/^[ \t]+|[ \t]+$/, "", $1); if($1!="") print $1}'
+}
+
+__get_tasks_list() {
+    local heap_name=$1
+    # Note: increased NR>3 to match your specific Rust output format
+    task-heap list "$heap_name" 2>/dev/null | awk -F '|' 'NR>3 {gsub(/^[ \t]+|[ \t]+$/, "", $1); if($1!="") print $1}'
+}
+
+# --- COMPLETION HELPERS ---
+
+_task_heap_heaps() {
+    local -a heaps
+    heaps=(${(f)"$(__get_heaps_list)"})
+    if [[ -n $heaps ]]; then
+        _describe -t heaps 'heap' heaps
+    else
+        _message 'heap name'
+    fi
+}
+
+_task_heap_heaps_new() { _message 'new heap name' }
+
+_task_heap_compound_new() {
+    if [[ $PREFIX == *.* ]]; then
+        _message 'new task name'
+    else
+        local -a heaps
+        heaps=(${(f)"$(__get_heaps_list)"})
+        _describe -t heaps 'stack' heaps -S '.'
+    fi
+}
+
+_task_heap_compound_existing() {
+    if [[ $PREFIX == *.* ]]; then
+        local heap_name=${PREFIX%.*}
+        # Remove the "heap." prefix from the match so Zsh can match the task name correctly
+        compset -P "*."
+        
+        local -a tasks
+        tasks=(${(f)"$(__get_tasks_list "$heap_name")"})
+        _describe -t tasks "tasks in $heap_name" tasks
+    else
+        local -a heaps
+        heaps=(${(f)"$(__get_heaps_list)"})
+        _describe -t heaps 'stack' heaps -S '.'
+    fi
+}
+
+_task_heap_compound_index() {
+     if [[ $PREFIX == *.* ]]; then
+        _message 'index (0, 1, 2...)'
+    else
+        local -a heaps
+        heaps=(${(f)"$(__get_heaps_list)"})
+        _describe -t heaps 'stack' heaps -S '.'
+    fi
+}
+
+_task_heap_tags() { _message 'tags (comma separated)' }
+_task_heap_names() { _message 'new task name' }
+
+_task_heap "$@"
