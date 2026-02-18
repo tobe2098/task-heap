@@ -146,7 +146,7 @@ fn print_task_table(tasks: &Vec<&Task>) {
         80
     };
 
-    const W_WEIGHT: usize = 6;
+    const W_WEIGHT: usize = 8;
     const W_STATE: usize = 8;
     const BORDER_OVERHEAD: usize = 13;
 
@@ -223,7 +223,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
         80
     };
 
-    const W_WEIGHT: usize = 6;
+    const W_WEIGHT: usize = 8;
     const W_STATE_SUM: usize = 15;
     const BORDER_OVERHEAD: usize = 13;
 
@@ -305,7 +305,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
 //        80
 //    };
 //
-//    const W_WEIGHT: usize = 6;
+//    const W_WEIGHT: usize = 8;
 //    const W_STATE_SUM: usize = 15;
 //    const BORDER_OVERHEAD: usize = 19;
 //
@@ -390,7 +390,7 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
         80
     };
 
-    const W_WEIGHT: usize = 6;
+    const W_WEIGHT: usize = 8;
     const W_STATE: usize = 8;
     const BORDER_OVERHEAD: usize = 13;
 
