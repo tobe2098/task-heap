@@ -15,9 +15,9 @@ mod action;
 mod heap;
 mod utils;
 
-use std::{env, io::Write};
+use std::{env, io::Write, process::ExitCode};
 
-fn main_wrapper() -> Result<(), HeapError> {
+fn internal_wrapper() -> Result<(), HeapError> {
     let args: Vec<String> = env::args().collect();
     let args_iterator = args.into_iter().skip(1).peekable();
 
@@ -31,12 +31,12 @@ fn main_wrapper() -> Result<(), HeapError> {
     Ok(())
 }
 
-fn main() {
-    match main_wrapper() {
-        Ok(()) => (),
+fn main() -> ExitCode {
+    match internal_wrapper() {
+        Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprint!("{}", e);
-            std::process::exit(1);
+            eprintln!("{}", e);
+            ExitCode::FAILURE
         }
     }
 }
