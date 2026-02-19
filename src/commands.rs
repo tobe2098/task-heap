@@ -1,6 +1,8 @@
 use crate::action::Action;
 use crate::error::HeapError;
-use crate::utils::{self, NumOrStr, Weight, get_description, get_heap_and_task, get_name};
+use crate::utils::{
+    self, NumOrStr, Weight, get_description, get_heap_and_task, get_name, get_tags,
+};
 use terminal_size::{Width, terminal_size};
 use textwrap::wrap;
 
@@ -799,37 +801,23 @@ pub fn parse_command<'a>(mut args_iterator: utils::ArgsIter) -> Result<Action<'a
                 Options::Name(contents)
             }
             TAG_OPT => {
-                let Some(contents) = get_name(&mut args_iterator)? else {
+                let tags = get_tags(&mut args_iterator)?;
+                if tags.is_empty() {
                     return Err(HeapError::MissingOption((
                         "tag name".to_owned(),
                         TAG_OPT.to_owned(),
                     )));
                 };
-                let tags: Vec<String> = contents
-                    .split(",")
-                    .map(|str| str.trim().to_owned())
-                    .filter(|s| !s.is_empty() || !s.contains(""))
-                    .collect();
-                if tags.iter().any(|s| s.is_empty()) {
-                    return Err(HeapError::TagCannotBeEmpty);
-                }
                 Options::Tags(tags)
             }
             UNTAG_OPT => {
-                let Some(contents) = get_name(&mut args_iterator)? else {
+                let tags = get_tags(&mut args_iterator)?;
+                if tags.is_empty() {
                     return Err(HeapError::MissingOption((
                         "tag name".to_owned(),
-                        TAG_OPT.to_owned(),
+                        UNTAG_OPT.to_owned(),
                     )));
                 };
-                let tags: Vec<String> = contents
-                    .split(",")
-                    .map(|str| str.trim().to_owned())
-                    .filter(|s| !s.is_empty() || !s.contains(""))
-                    .collect();
-                if tags.iter().any(|s| s.is_empty()) {
-                    return Err(HeapError::TagCannotBeEmpty);
-                }
                 Options::Untag(tags)
             }
             WEIGHT_OPT | WEIGHT_OPT2 => {

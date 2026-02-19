@@ -84,6 +84,17 @@ pub fn get_name(args_iterator: &mut ArgsIter) -> Result<Option<String>, HeapErro
     is_filename_safe(get_non_opt_arg(args_iterator))
 }
 
+pub fn get_tags(args_iterator: &mut ArgsIter) -> Result<Vec<String>, HeapError> {
+    get_non_opt_arg(args_iterator)
+        .map(|s| {
+            s.split(",")
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .ok_or(HeapError::ArgumentCannotHaveSeparator)
+}
+
 pub fn get_heap_name(args_iterator: &mut ArgsIter) -> Result<Option<String>, HeapError> {
     is_filename_safe(get_non_opt_arg(args_iterator))
 }

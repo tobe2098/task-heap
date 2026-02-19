@@ -13,7 +13,6 @@ pub enum HeapError {
     ArgumentCannotHaveSeparator,
     InvalidHeapName,
     InvalidWeights,
-    TagCannotBeEmpty,
     TaskNotFound(String),
     TaskAlreadyExists(String),
     NoHeapsFound,
@@ -58,7 +57,6 @@ impl fmt::Display for HeapError {
                 )
             }
             NoTaskInProgress => writeln!(f, "There is no task in progress, use `pop`."),
-            TagCannotBeEmpty => writeln!(f, "Tag cannot be empty or contain whitespace."),
             TaskNotFound(name) => writeln!(f, "Task \"{name}\" was not found."),
             TaskAlreadyExists(name) => writeln!(f, "Task \"{name}\" already exists."),
             NoHeapsFound => writeln!(f, "No task stacks were found."),
