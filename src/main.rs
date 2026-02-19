@@ -35,7 +35,7 @@ fn main() -> ExitCode {
     match internal_wrapper() {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("{}", e);
+            eprint!("{}", e);
             ExitCode::FAILURE
         }
     }
