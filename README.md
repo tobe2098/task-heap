@@ -1,6 +1,6 @@
-# task-heap
+# taskheap
 
-`task-heap` is a command-line task management tool written in Rust designed to help you prioritize and select tasks using a weighted probabilistic system. Unlike standard todo lists that are static, `task-heap` allows you to assign weights to task stacks (categories) and individual tasks to randomize your workflow based on priority.
+`taskheap` is a command-line task management tool written in Rust designed to help you prioritize and select tasks using a weighted probabilistic system. Unlike standard todo lists that are static, `taskheap` allows you to assign weights to task stacks (categories) and individual tasks to randomize your workflow based on priority.
 
 It features a "commit" mechanic (Chicken vs. Penguin) to encourage accountability when a task is selected.
 
@@ -16,7 +16,7 @@ To install directly:
 cargo install task-heap
 ```
 
-Add zsh completions to your shell by copying `completions/_task-heap` to your `fpath`.
+Add zsh completions to your shell by copying `completions/_taskheap` to your `fpath`.
 
 ## Core Concepts
 
@@ -154,27 +154,27 @@ When running commands, you can use the following qualifiers:
 ### Creating Stacks and Tasks
 
 ```
-~$ task-heap create deliverable
+~$ taskheap create deliverable
 Task heap deliverable created.
 ```
 ```
-~$ task-heap push deliverable.presentation -d "Make presentation about deliverable"
+~$ taskheap push deliverable.presentation -d "Make presentation about deliverable"
 Task created:
 STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE   
 deliverable.presentation | Make presentation about deliverable  |      100 | IDLE    
 ```
 ```
-~$ task-heap insert deliverable.0 start -d "Research deliverable" -w 200
+~$ taskheap insert deliverable.0 start -d "Research deliverable" -w 200
 Task created at index 0:
 STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE   
 deliverable.start        | Research deliverable                 |      200 | IDLE    
 ```
 ```
-~$ task-heap edit deliverable --tag work
+~$ taskheap edit deliverable --tag work
 Heap edited.
 ```
 ```
-$ task-heap list
+$ taskheap list
 STACK                       |   WEIGHT | TAGS                        | I/S/P/D
 deliverable                 | 100      |                       work | 2/0/0/0
 TASK               | DESCRIPTION                                |   WEIGHT | STATE
@@ -186,10 +186,10 @@ presentation       | Make presentation about deliverable        |      100 | IDL
 ### Popping tasks
 
 ```
-ubuntu@snapb:~$ task-heap stage deliverable.start
+ubuntu@snapb:~$ taskheap stage deliverable.start
 STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
 deliverable.start        | Research deliverable                 |      200 | STAGED
-~$ task-heap pop
+~$ taskheap pop
 The selected task for completion is:
 STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
 deliverable.start        | Research deliverable                 |      200 | STAGED
@@ -197,13 +197,13 @@ Are you certain you can complete it? Are you a chicken or a penguin? [y/n]:y
 Task is in progress. Penguin wishes you good luck!
 ```
 ```
-~$ task-heap reset deliverable.start
+~$ taskheap reset deliverable.start
 STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
 deliverable.start        | Research deliverable                 |      200 | IDLE
-~$ task-heap stage deliverable.presentation
+~$ taskheap stage deliverable.presentation
 STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
 deliverable.presentation | Make presentation about deliverable  |      100 | STAGED
-~$ task-heap pop
+~$ taskheap pop
 The selected task for completion is:
 STACK.TASK               | DESCRIPTION                          |   WEIGHT | STATE
 deliverable.start        | Research deliverable                 |      200 | IDLE
