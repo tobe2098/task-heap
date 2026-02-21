@@ -290,7 +290,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
             };
 
             println!(
-                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<t$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<s$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
+                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>t$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<s$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
                 name_part,
                 weight_part,
                 tags_part,
