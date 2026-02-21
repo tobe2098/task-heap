@@ -151,6 +151,15 @@ fn print_task_table(tasks: &Vec<&Task>) {
         80
     };
 
+    let autocomplete = std::env::var("AUTOCOMPLETE")
+        .unwrap_or("0".to_owned())
+        .to_lowercase();
+    if matches!(autocomplete.as_str(), "1" | "true") {
+        for task in tasks {
+            println!("{}", task.get_name());
+        }
+        return;
+    }
     const W_WEIGHT: usize = 8;
     const W_STATE: usize = 8;
     const BORDER_OVERHEAD: usize = 17;
@@ -220,6 +229,15 @@ fn print_task_table(tasks: &Vec<&Task>) {
 fn print_heap_headers(heaps: Vec<&TaskHeap>) {
     if heaps.is_empty() {
         println!("No task stacks to display.");
+        return;
+    }
+    let autocomplete = std::env::var("AUTOCOMPLETE")
+        .unwrap_or("0".to_owned())
+        .to_lowercase();
+    if matches!(autocomplete.as_str(), "1" | "true") {
+        for heap in heaps {
+            println!("{}", heap.get_name());
+        }
         return;
     }
     let term_width = if let Some((Width(w), _)) = terminal_size() {

@@ -77,13 +77,13 @@ _task_heap_commands() {
 # --- HELPER PARSERS ---
 
 __get_heaps_list() {
-    taskheap stacks 2>/dev/null | awk -F '|' 'NR>1 {gsub(/^[ \t]+|[ \t]+$/, "", $1); if($1!="") print $1}'
+    AUTOCOMPLETE=1 taskheap stacks 2>/dev/null
 }
 
 __get_tasks_list() {
     local heap_name=$1
     # Note: increased NR>3 to match your specific Rust output format
-    taskheap list "$heap_name" 2>/dev/null | awk -F '|' 'NR>3 {gsub(/^[ \t]+|[ \t]+$/, "", $1); if($1!="") print $1}'
+    AUTOCOMPLETE=1 taskheap list "$heap_name" 2>/dev/null | awk 'NR>2'
 }
 
 # --- COMPLETION HELPERS ---
