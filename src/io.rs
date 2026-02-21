@@ -202,7 +202,7 @@ fn print_task_table(tasks: &Vec<&Task>) {
             };
 
             println!(
-                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<d$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<t$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
+                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<d$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:^t$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
                 name_part,
                 desc_part,
                 weight_part,
@@ -290,7 +290,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
             };
 
             println!(
-                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>t$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<s$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
+                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>t$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:^s$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
                 name_part,
                 weight_part,
                 tags_part,
@@ -448,7 +448,7 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
 
             writeln!(
                 str,
-                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<d$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<t$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
+                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<d$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:^t$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
                 name_part,
                 desc_part,
                 weight_part,
