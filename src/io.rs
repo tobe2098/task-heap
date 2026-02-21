@@ -18,6 +18,9 @@ use textwrap::wrap;
 
 const EXTENSION: &str = "dbsv";
 const VOID: &str = "$VOID$";
+const ANSI_RESET: &str = "\x1b[0m";
+const TITLE_ANSI_COLOR: &str = "\x1b[38;5;208;48;5;242m"; // Bold Blue
+const TEXT_ANSI_COLOR: &str = "\x1b[38;5;15;48;5;242m"; // Bold Blue
 
 fn get_db_path() -> PathBuf {
     match env::var("TASK_HEAP_DBPATH") {
@@ -150,7 +153,7 @@ fn print_task_table(tasks: &Vec<&Task>) {
 
     const W_WEIGHT: usize = 8;
     const W_STATE: usize = 8;
-    const BORDER_OVERHEAD: usize = 13;
+    const BORDER_OVERHEAD: usize = 17;
 
     let remaining_width = term_width.saturating_sub(W_WEIGHT + W_STATE + BORDER_OVERHEAD);
     const RATIO_NAME_DESC: f64 = 0.3;
@@ -160,7 +163,7 @@ fn print_task_table(tasks: &Vec<&Task>) {
     let w_description = w_description.max(10);
     //println!("{}", "-".repeat(term_width));
     println!(
-        "{:<n$} | {:<d$} | {:>w$} | {:<t$}",
+        "{TITLE_ANSI_COLOR}| {:^n$} | {:^d$} | {:^w$} | {:^t$} |{ANSI_RESET}",
         "TASK",
         "DESCRIPTION",
         "WEIGHT",
@@ -199,7 +202,7 @@ fn print_task_table(tasks: &Vec<&Task>) {
             };
 
             println!(
-                "{:<n$} | {:<d$} | {:>w$} | {:<t$}",
+                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<d$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<t$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
                 name_part,
                 desc_part,
                 weight_part,
@@ -227,7 +230,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
 
     const W_WEIGHT: usize = 8;
     const W_STATE_SUM: usize = 15;
-    const BORDER_OVERHEAD: usize = 13;
+    const BORDER_OVERHEAD: usize = 17;
 
     let remaining_width = term_width.saturating_sub(W_WEIGHT + W_STATE_SUM + BORDER_OVERHEAD);
     const RATIO_NAME_TAGS: f64 = 0.5;
@@ -237,7 +240,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
     let w_tags = w_tags.max(10);
     //println!("+{}", "-".repeat(term_width - 5));
     println!(
-        "{:<n$} | {:>w$} | {:<t$} | {:<s$}",
+        "{TITLE_ANSI_COLOR}| {:^n$} | {:^w$} | {:^t$} | {:^s$} |{ANSI_RESET}",
         "STACK",
         "WEIGHT",
         "TAGS",
@@ -287,7 +290,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
             };
 
             println!(
-                "{:<n$} | {:<w$} | {:>t$} | {:<s$}",
+                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<t$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<s$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
                 name_part,
                 weight_part,
                 tags_part,
@@ -395,7 +398,7 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
 
     const W_WEIGHT: usize = 8;
     const W_STATE: usize = 8;
-    const BORDER_OVERHEAD: usize = 13;
+    const BORDER_OVERHEAD: usize = 17;
 
     let remaining_width = term_width.saturating_sub(W_WEIGHT + W_STATE + BORDER_OVERHEAD);
     const RATIO_NAME_DESC: f64 = 0.4;
@@ -406,7 +409,7 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
     //println!("{}", "-".repeat(term_width));
     writeln!(
         str,
-        "{:<n$} | {:<d$} | {:>w$} | {:<t$}",
+        "{TITLE_ANSI_COLOR}| {:^n$} | {:^d$} | {:^w$} | {:^t$} |{ANSI_RESET}",
         "STACK.TASK",
         "DESCRIPTION",
         "WEIGHT",
@@ -445,7 +448,7 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
 
             writeln!(
                 str,
-                "{:<n$} | {:<d$} | {:>w$} | {:<t$}",
+                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<d$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<t$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
                 name_part,
                 desc_part,
                 weight_part,
