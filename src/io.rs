@@ -276,7 +276,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
         let tags_string = tags
             .into_iter()
             .map(|s| s.to_owned())
-            .skip(1)
+            .filter(|s| !s.trim().is_empty())
             .collect::<Vec<_>>()
             .join(",");
         let tag_lines = wrap(&tags_string, w_tags);

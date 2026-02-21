@@ -11,6 +11,7 @@ pub enum HeapError {
     MissingOption((String, String)),
     ArgumentCannotHaveWhitespace,
     ArgumentCannotHaveSeparator,
+    EmptyArgument(String),
     InvalidHeapName,
     InvalidWeights,
     TaskNotFound(String),
@@ -39,6 +40,7 @@ impl fmt::Display for HeapError {
             MissingCommand => write!(f, "No command was used."),
             UserSaidNo => write!(f, "You backed down."),
             UnknownCommand(str) => write!(f, "Unknown command: {str}"),
+            EmptyArgument(str) => write!(f, "Empty argument: {str}"),
             MissingOption((arg, cmd)) => write!(f, "A {arg} is required for `{cmd}`."),
             ArgumentCannotHaveWhitespace => write!(f, "The argument cannot have whitespace"),
             InvalidHeapName => write!(

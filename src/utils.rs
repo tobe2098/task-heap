@@ -92,7 +92,7 @@ pub fn get_tags(args_iterator: &mut ArgsIter) -> Result<Vec<String>, HeapError> 
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
         })
-        .ok_or(HeapError::ArgumentCannotHaveSeparator)
+        .ok_or(HeapError::EmptyArgument("tag".to_owned()))
 }
 
 pub fn get_heap_name(args_iterator: &mut ArgsIter) -> Result<Option<String>, HeapError> {
