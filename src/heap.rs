@@ -5,12 +5,12 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::str::FromStr;
 
-pub struct HeapBuilder {
+pub struct StackBuilder {
     name: String,
     weight: Option<Weight>,
     tags: HashSet<String>,
 }
-impl HeapBuilder {
+impl StackBuilder {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -28,14 +28,14 @@ impl HeapBuilder {
     }
 }
 
-pub struct TaskHeap {
+pub struct TaskStack {
     name: String,
     weight: Weight,
     tags: HashSet<String>,
     tasks: VecDeque<Task>,
 }
 
-impl TaskHeap {
+impl TaskStack {
     pub fn new(name: impl Into<String>, weight: Weight, tags: HashSet<String>) -> Self {
         Self {
             name: name.into(),
@@ -170,7 +170,7 @@ impl TaskHeap {
         self.tags.remove(tag.as_ref())
     }
 }
-impl fmt::Display for TaskHeap {
+impl fmt::Display for TaskStack {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let tasks_str = self
             .tasks
@@ -192,7 +192,7 @@ impl fmt::Display for TaskHeap {
         )
     }
 }
-impl FromStr for TaskHeap {
+impl FromStr for TaskStack {
     type Err = HeapError;
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         //The first line is the header, the rest are tasks.
@@ -222,16 +222,16 @@ impl FromStr for TaskHeap {
             .map(|tag| tag.trim().to_owned())
             .collect::<HashSet<String>>();
 
-        let mut heap = TaskHeap::new(name, weight, tags);
+        let mut heap = TaskStack::new(name, weight, tags);
         for task in lines.filter(|l| !l.trim().is_empty()).map(|l| l.parse()) {
             heap.push(task?);
         }
         Ok(heap)
     }
 }
-impl From<HeapBuilder> for TaskHeap {
-    fn from(builder: HeapBuilder) -> Self {
-        TaskHeap {
+impl From<StackBuilder> for TaskStack {
+    fn from(builder: StackBuilder) -> Self {
+        TaskStack {
             name: builder.name,
             weight: builder.weight.unwrap_or(DEFAULT_WEIGHT),
             tags: builder.tags,

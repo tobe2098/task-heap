@@ -1,13 +1,13 @@
 use crate::commands::{Command, Options, print_help, print_help_cmd};
 use crate::error::HeapError;
-use crate::heap::{HeapBuilder, TaskHeap};
+use crate::heap::{StackBuilder, TaskStack};
 use crate::io::{
-    delete_stack_file, get_yes_no, print_all_tasks, print_all_tasks_flat, print_heaps_only,
-    print_single_heap, print_tasks_standalone,
+    delete_stack_file, get_yes_no, print_all_tasks, print_all_tasks_flat, print_single_stack,
+    print_stacks_only, print_tasks_standalone,
 };
 use crate::task::{Task, TaskBuilder};
 use crate::utils::{
-    HeapMap, NumOrStr, PeekIntoIter, TaskID, Weight, get_heap_from_arg, get_task_from_arg,
+    NumOrStr, PeekIntoIter, StackMap, TaskID, Weight, get_heap_from_arg, get_task_from_arg,
     get_task_from_id,
 };
 use Command::*;
@@ -57,8 +57,8 @@ fn build_heap(
     name: impl Into<String>,
     options_iter: &mut PeekIntoIter<Options>,
     command: &Command,
-) -> TaskHeap {
-    let mut builder = HeapBuilder::new(name.into());
+) -> TaskStack {
+    let mut builder = StackBuilder::new(name.into());
     while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(command)) {
         match qualifier {
             Weight(weight_str) => {
@@ -73,7 +73,7 @@ fn build_heap(
             _ => unreachable!(),
         };
     }
-    TaskHeap::from(builder)
+    TaskStack::from(builder)
 }
 fn build_task(
     name: impl Into<String>,
@@ -96,7 +96,7 @@ fn build_task(
     }
     Task::from(builder)
 }
-fn edit_heap(heap: &mut TaskHeap, options_iter: &mut PeekIntoIter<Options>, command: &Command) {
+fn edit_heap(heap: &mut TaskStack, options_iter: &mut PeekIntoIter<Options>, command: &Command) {
     while let Some(qualifier) = options_iter.next_if(|cmd| cmd.is_valid_for(command)) {
         match qualifier {
             Name(_) => {
@@ -144,7 +144,7 @@ fn edit_task(task: &mut Task, options_iter: &mut PeekIntoIter<Options>, command:
 }
 fn pop_task(
     tags: Vec<String>,
-    heapmap: &mut HeapMap,
+    heapmap: &mut StackMap,
     mut output: impl Write,
 ) -> Result<&mut Task, HeapError> {
     let candidates: Vec<(&String, Weight)> = heapmap
@@ -190,7 +190,7 @@ fn pop_task(
 }
 pub fn run_action(
     action: Action,
-    heapmap: &mut HeapMap,
+    heapmap: &mut StackMap,
     active_task: &mut Option<TaskID>,
 ) -> Result<Vec<u8>, HeapError> {
     let (command, options) = action;
@@ -379,7 +379,7 @@ pub fn run_action(
             let tags = get_tags(&command, &mut options_iter);
             if let Some(heap_name) = heap_name_opt {
                 let heap = get_heap_from_arg(heap_name, heapmap)?;
-                print_single_heap(heap, false);
+                print_single_stack(heap, false);
             } else {
                 print_all_tasks(heapmap, false, &tags);
             }
@@ -392,7 +392,7 @@ pub fn run_action(
         Heaps => {
             //Print only heap headers and staged
             let tags = get_tags(&command, &mut options_iter);
-            print_heaps_only(heapmap, &tags);
+            print_stacks_only(heapmap, &tags);
         }
         Help(cmd_opt) => {
             if let Some(cmd) = cmd_opt {

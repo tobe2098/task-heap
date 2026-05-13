@@ -1,8 +1,8 @@
 use crate::{
     error::HeapError,
-    heap::TaskHeap,
+    heap::TaskStack,
     task::{Task, TaskStatus},
-    utils::{HeapMap, TaskID, check_task_id},
+    utils::{StackMap, TaskID, check_task_id},
 };
 use directories::ProjectDirs;
 use std::{
@@ -19,8 +19,9 @@ use textwrap::wrap;
 const EXTENSION: &str = "dbsv";
 const VOID: &str = "$VOID$";
 const ANSI_RESET: &str = "\x1b[0m";
-const TITLE_ANSI_COLOR: &str = "\x1b[38;5;208;48;5;242m"; // Bold Blue
-const TEXT_ANSI_COLOR: &str = "\x1b[38;5;15;48;5;242m"; // Bold Blue
+const TITLE_ANSI_COLOR: &str = "\x1b[38;5;208;48;5;240m"; // Bold Blue
+const BAR_ANSI_COLOR: [&str; 2] = ["\x1b[38;5;208;48;5;242m", "\x1b[38;5;208;48;5;241m"]; // Bold Blue
+const TEXT_ANSI_COLOR: [&str; 2] = ["\x1b[38;5;15;48;5;242m", "\x1b[38;5;15;48;5;241m"]; // Bold Blue
 
 fn get_db_path() -> PathBuf {
     match env::var("TASK_HEAP_DBPATH") {
@@ -65,7 +66,7 @@ pub fn write_meta_file(active_task: Option<TaskID>) -> std::io::Result<()> {
     }
     Ok(())
 }
-pub fn write_task_heap(heapmap: HeapMap) -> std::io::Result<()> {
+pub fn write_task_heap(heapmap: StackMap) -> std::io::Result<()> {
     let db_path = get_db_path();
     for heap in heapmap.values() {
         let db_file: fs::File = fs::OpenOptions::new()
@@ -77,10 +78,10 @@ pub fn write_task_heap(heapmap: HeapMap) -> std::io::Result<()> {
     }
     Ok(())
 }
-pub fn read_task_heap() -> Result<HeapMap, HeapError> {
+pub fn read_task_heap() -> Result<StackMap, HeapError> {
     // Your code here
     let db_path = get_db_path();
-    let mut heapmap = HeapMap::new();
+    let mut heapmap = StackMap::new();
     for file in fs::read_dir(db_path)?.filter(|name| {
         name.as_ref()
             .is_ok_and(|v| v.file_name() != OsStr::new(&format!("meta.{}", EXTENSION)))
@@ -90,7 +91,7 @@ pub fn read_task_heap() -> Result<HeapMap, HeapError> {
         if content.trim().is_empty() {
             continue; // Skip empty files
         }
-        let mut heap: TaskHeap = content.parse()?;
+        let mut heap: TaskStack = content.parse()?;
         heap.set_name(
             file.file_name()
                 .to_str()
@@ -102,7 +103,7 @@ pub fn read_task_heap() -> Result<HeapMap, HeapError> {
     }
     Ok(heapmap)
 }
-pub fn read_meta_file(heapmap: &HeapMap) -> Result<Option<TaskID>, HeapError> {
+pub fn read_meta_file(heapmap: &StackMap) -> Result<Option<TaskID>, HeapError> {
     let db_path = get_db_path();
     let meta_file = fs::OpenOptions::new()
         .read(true)
@@ -161,7 +162,7 @@ fn print_task_table(tasks: &Vec<&Task>) {
         return;
     }
     const W_WEIGHT: usize = 8;
-    const W_STATE: usize = 8;
+    const W_STATE: usize = 15;
     const BORDER_OVERHEAD: usize = 17;
 
     let remaining_width = term_width.saturating_sub(W_WEIGHT + W_STATE + BORDER_OVERHEAD);
@@ -171,18 +172,18 @@ fn print_task_table(tasks: &Vec<&Task>) {
     let w_name = w_name.max(5);
     let w_description = w_description.max(10);
     //println!("{}", "-".repeat(term_width));
-    println!(
-        "{TITLE_ANSI_COLOR}| {:^n$} | {:^d$} | {:^w$} | {:^t$} |{ANSI_RESET}",
-        "TASK",
-        "DESCRIPTION",
-        "WEIGHT",
-        "STATE",
-        n = w_name,
-        d = w_description,
-        w = W_WEIGHT,
-        t = W_STATE
-    );
-    for task in tasks {
+    //println!(
+    //    "{TITLE_ANSI_COLOR}| {:^n$} | {:^d$} | {:^w$} | {:^t$} |{ANSI_RESET}",
+    //    "TASK",
+    //    "DESCRIPTION",
+    //    "WEIGHT",
+    //    "STATE",
+    //    n = w_name,
+    //    d = w_description,
+    //    w = W_WEIGHT,
+    //    t = W_STATE
+    //);
+    for (idx, task) in tasks.iter().enumerate() {
         let state = task.get_state();
         let state_str = match state {
             TaskStatus::Idle => "IDLE",
@@ -198,6 +199,8 @@ fn print_task_table(tasks: &Vec<&Task>) {
             .len()
             .max(desc_lines.len())
             .max(state_lines.len());
+        let text_row_color: &str = TEXT_ANSI_COLOR[(idx + 1) % 2];
+        let bars_row_color: &str = BAR_ANSI_COLOR[(idx + 1) % 2];
         for i in 0..max_lines {
             let name_part = name_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
             let desc_part = desc_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
@@ -211,8 +214,8 @@ fn print_task_table(tasks: &Vec<&Task>) {
             };
 
             println!(
-                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<d$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:^t$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
-                name_part,
+                "{bars_row_color}|{text_row_color} {:>n$} {bars_row_color}|{text_row_color} {:<d$} {bars_row_color}|{text_row_color} {:>w$} {bars_row_color}|{text_row_color} {:^t$} {bars_row_color}|{ANSI_RESET}",
+                ".".to_owned() + name_part,
                 desc_part,
                 weight_part,
                 state_part,
@@ -226,7 +229,7 @@ fn print_task_table(tasks: &Vec<&Task>) {
     }
 }
 
-fn print_heap_headers(heaps: Vec<&TaskHeap>) {
+fn print_stack_headers(heaps: Vec<&TaskStack>, with_tasks: bool) {
     if heaps.is_empty() {
         println!("No task stacks to display.");
         return;
@@ -251,17 +254,21 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
     const BORDER_OVERHEAD: usize = 17;
 
     let remaining_width = term_width.saturating_sub(W_WEIGHT + W_STATE_SUM + BORDER_OVERHEAD);
-    const RATIO_NAME_TAGS: f64 = 0.5;
+    const RATIO_NAME_TAGS: f64 = 0.3;
     let w_name = (remaining_width as f64 * RATIO_NAME_TAGS) as usize;
     let w_tags = (remaining_width as f64 * (1. - RATIO_NAME_TAGS)) as usize;
     let w_name = w_name.max(5);
     let w_tags = w_tags.max(10);
     //println!("+{}", "-".repeat(term_width - 5));
     println!(
-        "{TITLE_ANSI_COLOR}| {:^n$} | {:^w$} | {:^t$} | {:^s$} |{ANSI_RESET}",
-        "STACK",
+        "{TITLE_ANSI_COLOR}| {:^n$} | {:^t$} | {:^w$} | {:^s$} |{ANSI_RESET}",
+        if with_tasks { "STACK.TASK" } else { "STACK" },
+        if with_tasks {
+            "TAGS/DESCRIPTION"
+        } else {
+            "TAGS"
+        },
         "WEIGHT",
-        "TAGS",
         "I/S/P/D",
         n = w_name,
         t = w_tags,
@@ -270,7 +277,7 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
     );
     //println!("{}", "-".repeat(term_width));
     // Tags need to be sorted to look consistent (HashSet is random!)
-    for heap in heaps {
+    for (i, heap) in heaps.iter().enumerate() {
         let mut tags = heap.get_tags();
         tags.sort();
         let tags_string = tags
@@ -295,6 +302,8 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
             .join("/");
         let state_lines = wrap(&state_str, w_tags);
         let max_lines = name_lines.len().max(state_lines.len()).max(tag_lines.len());
+        let text_row_color: &str = TEXT_ANSI_COLOR[i % 2];
+        let bars_row_color: &str = BAR_ANSI_COLOR[i % 2];
         for i in 0..max_lines {
             let name_part = name_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
             let state_part = state_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
@@ -308,10 +317,10 @@ fn print_heap_headers(heaps: Vec<&TaskHeap>) {
             };
 
             println!(
-                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>t$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:^s$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
+                "{bars_row_color}|{text_row_color} {:^n$} {bars_row_color}|{text_row_color} {:<t$} {bars_row_color}|{text_row_color} {:>w$} {bars_row_color}|{text_row_color} {:^s$} {bars_row_color}|{ANSI_RESET}",
                 name_part,
-                weight_part,
                 tags_part,
+                weight_part,
                 state_part,
                 n = w_name,
                 t = w_tags,
@@ -437,7 +446,7 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
         w = W_WEIGHT,
         t = W_STATE
     )?;
-    for task in tasks {
+    for (i, task) in tasks.iter().enumerate() {
         let state = match task.get_state() {
             TaskStatus::Idle => "IDLE",
             TaskStatus::Staged => "STAGED",
@@ -452,6 +461,8 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
             .len()
             .max(desc_lines.len())
             .max(state_lines.len());
+        let text_row_color: &str = TEXT_ANSI_COLOR[i % 2];
+        let bars_row_color: &str = BAR_ANSI_COLOR[i % 2];
         for i in 0..max_lines {
             let name_part = name_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
             let desc_part = desc_lines.get(i).map(|s| s.as_ref()).unwrap_or("");
@@ -466,7 +477,7 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
 
             writeln!(
                 str,
-                "{TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<n$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:<d$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:>w$} {TITLE_ANSI_COLOR}|{TEXT_ANSI_COLOR} {:^t$} {TITLE_ANSI_COLOR}|{ANSI_RESET}",
+                "{bars_row_color}|{text_row_color} {:<n$} {bars_row_color}|{text_row_color} {:<d$} {bars_row_color}|{text_row_color} {:>w$} {bars_row_color}|{text_row_color} {:^t$} {bars_row_color}|{ANSI_RESET}",
                 name_part,
                 desc_part,
                 weight_part,
@@ -482,8 +493,8 @@ pub fn print_tasks_standalone<W: Write>(tasks: Vec<&Task>, str: &mut W) -> Resul
     Ok(())
 }
 
-pub fn print_single_heap(heap: &TaskHeap, staged_only: bool) {
-    print_heap_headers(vec![heap]);
+pub fn print_single_stack(heap: &TaskStack, staged_only: bool) {
+    print_stack_headers(vec![heap], true);
     let tasks = if staged_only {
         heap.get_staged_tasks()
     } else {
@@ -493,7 +504,7 @@ pub fn print_single_heap(heap: &TaskHeap, staged_only: bool) {
 }
 
 pub fn print_all_tasks_flat(
-    heapmap: &HeapMap,
+    heapmap: &StackMap,
     staged_only: bool,
     tags: &[String],
 ) -> Result<(), HeapError> {
@@ -521,7 +532,7 @@ pub fn print_all_tasks_flat(
     Ok(())
 }
 
-pub fn print_all_tasks(heapmap: &HeapMap, staged_only: bool, tags: &[String]) {
+pub fn print_all_tasks(heapmap: &StackMap, staged_only: bool, tags: &[String]) {
     let mut stacks = heapmap
         .values()
         .filter(|heap| heap.has_tags(tags) && (!staged_only || !heap.is_all_complete()))
@@ -532,17 +543,17 @@ pub fn print_all_tasks(heapmap: &HeapMap, staged_only: bool, tags: &[String]) {
         return;
     }
     for heap in stacks {
-        print_single_heap(heap, staged_only);
+        print_single_stack(heap, staged_only);
     }
 }
 
-pub fn print_heaps_only(heapmap: &HeapMap, tags: &[String]) {
+pub fn print_stacks_only(heapmap: &StackMap, tags: &[String]) {
     let mut heaps = heapmap
         .values()
         .filter(|heap| heap.has_tags(tags))
         .collect::<Vec<_>>();
     heaps.sort_by(|a, b| a.get_name().cmp(b.get_name()));
-    print_heap_headers(heaps);
+    print_stack_headers(heaps, false);
 }
 
 pub fn get_yes_no() -> Result<String, HeapError> {
